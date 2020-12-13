@@ -1,7 +1,6 @@
 # learnergy4video: Energy-based Machine Learners for Video
 
 [![Latest release](https://img.shields.io/github/release/MateusRoder/learnergy4video.svg)](https://github.com/MateusRoder/learnergy4video/releases)
-[![Build status](https://img.shields.io/travis/com/MateusRoder/learnergy4video/master.svg)](https://github.com/MateusRoder/learnergy4video/releases)
 [![Open issues](https://img.shields.io/github/issues/MateusRoder/learnergy4video.svg)](https://github.com/MateusRoder/learnergy4video/issues)
 [![License](https://img.shields.io/github/license/MateusRoder/learnergy4video.svg)](https://github.com/MateusRoder/learnergy4video/blob/master/LICENSE)
 
