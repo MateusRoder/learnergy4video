@@ -148,26 +148,9 @@ class SpecCDBN(Model):
         # Initializing MSE and pseudo-likelihood as lists
         mse, pl = [], []
 
-        # Initializing the dataset's variables
-        try:
-            # Transforming the dataset into training batches
-            batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=workers, collate_fn=collate_fn)
-            d = dataset
-        except:
-            try:
-                samples, targets, transform = dataset.data.numpy(), dataset.targets.numpy(), dataset.transform
-                # Creating the dataset
-                d = Dataset(samples, targets, transform)
-            except:
-                # If the dataset is not a numpy array
-                import numpy as np
-                samples, targets, transform = dataset.data, dataset.targets, dataset.transform
-                samples = np.array(samples)
-                targets = np.array(targets)
-
-                # Creating the dataset
-                d = Dataset(samples, targets, transform)
-
+        # Transforming the dataset into training batches
+        batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=workers, collate_fn=collate_fn)
+        d = dataset
 
         # For every possible model (CRBM)
         for i, model in enumerate(self.models):
