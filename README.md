@@ -16,7 +16,6 @@ Use learnergy4video if you need a library or wish to:
 * Mix-and-match different strategies to solve your problem;
 * Because it is incredible to learn things.
 
-#Read the docs at [learnergy4video.readthedocs.io](https://learnergy4video.readthedocs.io).
 
 learnergy4video is compatible with: **Python 3.6+**.
 
