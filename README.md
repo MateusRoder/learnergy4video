@@ -6,7 +6,7 @@
 
 ## Welcome to learnergy4video.
 
-Did you ever reach a bottleneck in your computational experiments? Are you tired of implementing your own techniques? If yes, learnergy4video is the real deal! This package provides an easy-to-go implementation of energy-based machine learning algorithms. From video datasets to fully-customizable models, from internal functions to external communications, we will foster all research related to energy-based machine learning.
+Did you ever reach a bottleneck in your computational experiments? Are you tired of implementing your own techniques? If yes, learnergy4video is the real deal! This package provides an easy-to-go implementation of energy-based machine learning algorithms for video domain. From big datasets to fully-customizable models, from internal functions to external communications, we will foster all research related to energy-based machine learning.
 
 Use learnergy4video if you need a library or wish to:
 
@@ -35,10 +35,10 @@ If you use learnergy4video to fulfill any of your needs, please cite us:
 
 ```BibTex
 @misc{roder2020learnergy4video,
-    title={learnergy4video: Energy-based Machine Learners},
+    title={learnergy4video: Energy-based Machine Learners for Video Domain},
     author={Mateus Roder and Gustavo Henrique de Rosa and João Paulo Papa},
-    year={2020},
-    eprint={2003.07443},
+    year={202X},
+    eprint={---},
     archivePrefix={arXiv},
     primaryClass={cs.LG}
 }
@@ -72,13 +72,20 @@ learnergy4video is based on the following structure, and you should pay attentio
             - gaussian_conv_rbm        
             - gaussian_rbm
             - sigmoid_rbm
+            - spec_conv_rbm
         - stack
             - dbn
             - residual_dbn
+            - conv_dbn
+            - spec_conv_dbn
+            - dbm
     - utils
         - constants
         - exception
         - logging
+        - collate
+        - ucf loader
+        - hmdb loader
     - visual
         - image
         - metrics
