@@ -1,13 +1,13 @@
-# learnergy4video: Energy-based Machine Learners
+# learnergy4video: Energy-based Machine Learners for Video
 
-[![Latest release](https://img.shields.io/github/release/gugarosa/learnergy4video.svg)](https://github.com/gugarosa/learnergy4video/releases)
-[![Build status](https://img.shields.io/travis/com/gugarosa/learnergy4video/master.svg)](https://github.com/gugarosa/learnergy4video/releases)
-[![Open issues](https://img.shields.io/github/issues/gugarosa/learnergy4video.svg)](https://github.com/gugarosa/learnergy4video/issues)
-[![License](https://img.shields.io/github/license/gugarosa/learnergy4video.svg)](https://github.com/gugarosa/learnergy4video/blob/master/LICENSE)
+[![Latest release](https://img.shields.io/github/release/gugarosa/learnergy4video.svg)](https://github.com/MateusRoder/learnergy4video/releases)
+[![Build status](https://img.shields.io/travis/com/gugarosa/learnergy4video/master.svg)](https://github.com/MateusRoder/learnergy4video/releases)
+[![Open issues](https://img.shields.io/github/issues/gugarosa/learnergy4video.svg)](https://github.com/MateusRoder/learnergy4video/issues)
+[![License](https://img.shields.io/github/license/gugarosa/learnergy4video.svg)](https://github.com/MateusRoder/learnergy4video/blob/master/LICENSE)
 
 ## Welcome to learnergy4video.
 
-Did you ever reach a bottleneck in your computational experiments? Are you tired of implementing your own techniques? If yes, learnergy4video is the real deal! This package provides an easy-to-go implementation of energy-based machine learning algorithms. From datasets to fully-customizable models, from internal functions to external communications, we will foster all research related to energy-based machine learning.
+Did you ever reach a bottleneck in your computational experiments? Are you tired of implementing your own techniques? If yes, learnergy4video is the real deal! This package provides an easy-to-go implementation of energy-based machine learning algorithms. From video datasets to fully-customizable models, from internal functions to external communications, we will foster all research related to energy-based machine learning.
 
 Use learnergy4video if you need a library or wish to:
 
@@ -16,7 +16,7 @@ Use learnergy4video if you need a library or wish to:
 * Mix-and-match different strategies to solve your problem;
 * Because it is incredible to learn things.
 
-Read the docs at [learnergy4video.readthedocs.io](https://learnergy4video.readthedocs.io).
+#Read the docs at [learnergy4video.readthedocs.io](https://learnergy4video.readthedocs.io).
 
 learnergy4video is compatible with: **Python 3.6+**.
 
