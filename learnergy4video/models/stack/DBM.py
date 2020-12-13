@@ -6,11 +6,20 @@ from tqdm import tqdm
 from PIL import Image
 from learnergy4video.visual.image import _rasterize
 
+from learnergy4video.utils.collate import collate_fn
 import learnergy4video.utils.exception as e
 import learnergy4video.utils.logging as l
 from learnergy4video.core import Dataset, Model
 from learnergy4video.models.binary import RBM
 from learnergy4video.models.real import (GaussianRBM, SigmoidRBM)
+
+import os
+workers = os.cpu_count()
+if workers == None:
+    workers = 0
+else:
+    workers -= 2
+
 
 logger = l.get_logger(__name__)
 
@@ -273,15 +282,6 @@ class DBM(Model):
         # Initializing MSE and pseudo-likelihood as lists
         mse, pl, custo = [], [], []
 
-        def collate_fn(batches):
-            try:
-                # remove audio from the batch
-                batches = [(dd[0], dd[2]) for dd in batches]
-                return default_collate(batches)
-            except:
-                return default_collate(batches)
-
-
         # For every possible model (RBM)
         for i, model in enumerate(self.models):
             logger.info(f'Fitting layer {i+1}/{self.n_layers} ...')
@@ -310,7 +310,7 @@ class DBM(Model):
                 else:
                     model.c1 = 2.0
                     model.c2 = 2.0
-                batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=20, collate_fn=collate_fn)
+                batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=workers, collate_fn=collate_fn)
                 for ep in range(epochs[i]): # iterate over epochs for model 'i'
                     logger.info(f'Epoch {ep+1}/{epochs[i]}')
                     mse2, pl2, cst2 = 0, 0, 0
@@ -462,16 +462,10 @@ class DBM(Model):
             MSE (mean squared error) and log pseudo-likelihood from the training step.
 
         """
-        def collate_fn(batches):
-            try:
-                # remove audio from the batch
-                batches = [(d[0], d[2]) for d in batches]
-                return default_collate(batches)
-            except:
-                return default_collate(batches)
+
 
         # Transforming the dataset into training batches
-        batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=20, collate_fn=collate_fn)
+        batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=workers, collate_fn=collate_fn)
         
         # For every epoch
         for e in range(epochs):
@@ -613,7 +607,7 @@ class DBM(Model):
 
         # Transforming the dataset into training batches
         batches = DataLoader(dataset, batch_size=batch_size,
-                             shuffle=False, num_workers=0)
+                             shuffle=False, num_workers=workers)
 
         # For every batch
         for samples, _ in tqdm(batches):

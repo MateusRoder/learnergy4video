@@ -344,7 +344,7 @@ class ConvRBM(Model):
         # Sampling current states
         states = torch.bernoulli(probs)
 
-        return probs, states
+        return probs.detach(), states.detach()
 
     def visible_sampling(self, h):
         """Performs the visible layer sampling, i.e., P(v|h).
@@ -366,7 +366,7 @@ class ConvRBM(Model):
         # Sampling current states
         states = torch.bernoulli(probs)
 
-        return probs, states
+        return probs.detach(), states.detach()
 
     def gibbs_sampling(self, v):
         """Performs the whole Gibbs sampling procedure.

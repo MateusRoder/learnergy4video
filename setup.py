@@ -5,7 +5,7 @@ with open('README.md', 'r') as f:
 
 setup(name='learnergy4video4video',
       version='1.0.8',
-      description='Learnergy for video data',
+      description='learnergy4video for video data',
       long_description=long_description,
       long_description_content_type='text/markdown',
       author='Mateus Roder and Gustavo de Rosa',

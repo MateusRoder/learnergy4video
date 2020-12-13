@@ -10,6 +10,13 @@ import learnergy4video.utils.logging as l
 from learnergy4video.models.binary import ConvRBM
 import torch.nn as nn
 
+import os
+workers = os.cpu_count()
+if workers == None:
+    workers = 0
+else:
+    workers -= 2
+    
 logger = l.get_logger(__name__)
 
 

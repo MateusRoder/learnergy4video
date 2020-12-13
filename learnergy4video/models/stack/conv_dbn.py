@@ -10,10 +10,18 @@ from torch.utils.data.dataloader import default_collate
 from tqdm import tqdm
 
 import learnergy4video.utils.logging as l
+from learnergy4video.utils.collate import collate_fn
 from learnergy4video.models.binary import ConvRBM
 from learnergy4video.models.real import GaussianConvRBM
 from learnergy4video.core import Dataset, Model
 import time
+
+import os
+workers = os.cpu_count()
+if workers == None:
+    workers = 0
+else:
+    workers -= 2
 
 logger = l.get_logger(__name__)
 
@@ -134,22 +142,13 @@ class CDBN(Model):
             MSE (mean squared error) from the training step.
         """
 
-        def collate_fn(batches):
-            try:
-                # remove audio from the batch
-                batches = [(d[0], d[2]) for d in batches]
-                return default_collate(batches)
-            except:
-                return default_collate(batches)
-
-
         # Initializing MSE and pseudo-likelihood as lists
         mse, pl = [], []
 
         # Initializing the dataset's variables
         try:
             # Transforming the dataset into training batches
-            batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=20, collate_fn=collate_fn)
+            batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=workers, collate_fn=collate_fn)
             d = dataset
         except:
             try:

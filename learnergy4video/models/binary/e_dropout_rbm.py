@@ -12,6 +12,13 @@ import learnergy4video.utils.exception as ex
 import learnergy4video.utils.logging as l
 from learnergy4video.models.binary import RBM
 
+import os
+workers = os.cpu_count()
+if workers == None:
+    workers = 0
+else:
+    workers -= 2
+
 logger = l.get_logger(__name__)
 
 
@@ -161,7 +168,7 @@ class EDropoutRBM(RBM):
         """
 
         # Transforming the dataset into training batches
-        batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+        batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=workers)
 
         # For every epoch
         for epoch in range(epochs):

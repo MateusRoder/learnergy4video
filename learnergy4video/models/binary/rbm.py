@@ -17,6 +17,12 @@ from learnergy4video.core import Model
 
 logger = l.get_logger(__name__)
 
+import os
+workers = os.cpu_count()
+if workers == None:
+    workers = 0
+else:
+    workers -= 2
 
 class RBM(Model):
     """An RBM class provides the basic implementation for Bernoulli-Bernoulli Restricted Boltzmann Machines.
@@ -474,7 +480,7 @@ class RBM(Model):
 
         # Transforming the dataset into training batches
         batches = DataLoader(dataset, batch_size=batch_size,
-                             shuffle=True, num_workers=0)
+                             shuffle=True, num_workers=workers)
 
         # For every epoch
         for epoch in range(epochs):
@@ -565,7 +571,7 @@ class RBM(Model):
 
         # Transforming the dataset into training batches
         batches = DataLoader(dataset, batch_size=batch_size,
-                             shuffle=False, num_workers=0)
+                             shuffle=False, num_workers=workers)
 
         # For every batch
         for samples, _ in tqdm(batches):

@@ -8,11 +8,19 @@ from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.dataloader import default_collate
 from PIL import Image
 from learnergy4video.visual.image import _rasterize
+from learnergy4video.utils.collate import collate_fn
 
 import learnergy4video.utils.constants as c
 import learnergy4video.utils.exception as e
 import learnergy4video.utils.logging as l
 from learnergy4video.models.binary import RBM
+
+import os
+workers = os.cpu_count()
+if workers == None:
+    workers = 0
+else:
+    workers -= 2
 
 logger = l.get_logger(__name__)
 
@@ -130,16 +138,9 @@ class GaussianRBM(RBM):
             MSE (mean squared error) and log pseudo-likelihood from the training step.
 
         """
-        def collate_fn(batches):
-            try:
-                # remove audio from the batch
-                batches = [(d[0], d[2]) for d in batches]
-                return default_collate(batches)
-            except:
-                return default_collate(batches)
 
         # Transforming the dataset into training batches
-        batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=20, collate_fn=collate_fn)
+        batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=workers, collate_fn=collate_fn)
         
         # For every epoch
         for e in range(epochs):
@@ -267,16 +268,8 @@ class GaussianRBM(RBM):
         #batch_size = len(dataset)
         batch_size = bs
 
-        def collate_fn(batches):
-            try:
-                # remove audio from the batch
-                batches = [(d[0], d[2]) for d in batches]
-                return default_collate(batches)
-            except:
-                return default_collate(batches)
-
         # Transforming the dataset into training batches
-        batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0, collate_fn=collate_fn)
+        batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=workers, collate_fn=collate_fn)
         
         reconstructed = []
         original = []

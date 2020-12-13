@@ -6,6 +6,12 @@ from learnergy4video.models.stack.DBM import DBM
 from learnergy4video.utils.ucf2 import UCF101
 #from learnergy4video.utils.hmdb import HMDB51
 
+import os
+workers = os.cpu_count()
+if workers == None:
+    workers = 0
+else:
+    workers -= 2
 
 if __name__ == '__main__':
 
@@ -23,7 +29,7 @@ if __name__ == '__main__':
 
         name = 'U1dbm_std'+str(j)+'.pth'
         train = UCF101(root='/home/roder/RBM-Video/UCF-101', annotation_path='/home/roder/RBM-Video/ucf_split',
-                        frames_per_clip=frames_per_clip, num_workers=20,
+                        frames_per_clip=frames_per_clip, num_workers=workers,
                         dim=[dy, dx], chn=1, transform=torchvision.transforms.Compose([
 		        torchvision.transforms.ToPILImage(),
         		torchvision.transforms.Resize((dy, dx)),

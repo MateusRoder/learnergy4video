@@ -4,13 +4,22 @@ import tqdm
 import learnergy4video.utils.constants as c
 import learnergy4video.utils.exception as e
 import learnergy4video.utils.logging as l
+
 from torch.utils.data.dataloader import default_collate
 from torch.utils.data import DataLoader
+
+from learnergy4video.utils.collate import collate_fn
 from learnergy4video.core.dataset import Dataset
 from learnergy4video.core.model import Model
 from learnergy4video.models.binary import RBM
 from learnergy4video.models.real import GaussianRBM, SigmoidRBM
 
+import os
+workers = os.cpu_count()
+if workers == None:
+    workers = 0
+else:
+    workers -= 2
 
 logger = l.get_logger(__name__)
 
@@ -270,15 +279,6 @@ class DBN(Model):
         # Initializing MSE and pseudo-likelihood as lists
         mse, pl, custo = [], [], []
 
-        # Initializing the dataset's variables
-        #samples, targets, transform = dataset.data.numpy(), dataset.targets.numpy(), dataset.transform
-        def collate_fn(batches):
-            try:
-                # remove audio from the batch
-                batches = [(dd[0], dd[2]) for dd in batches]
-                return default_collate(batches)
-            except:
-                return default_collate(batches)
 
         # Transforming the dataset into training batches
         #batches = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=1)
@@ -298,7 +298,7 @@ class DBN(Model):
                 self.dump(mse=model_mse.item(), pl=model_pl.item(), fe=cst.item())
 
             else:
-                batches = DataLoader(d, batch_size=batch_size, shuffle=True, num_workers=20, collate_fn=collate_fn)
+                batches = DataLoader(d, batch_size=batch_size, shuffle=True, num_workers=workers, collate_fn=collate_fn)
                 for ep in range(epochs[i]): # iterate over epochs for model 'i'
                     logger.info(f'Epoch {ep+1}/{epochs[i]}')
                     mse2, pl2, cst2 = 0, 0, 0
