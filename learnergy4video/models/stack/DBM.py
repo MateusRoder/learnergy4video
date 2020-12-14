@@ -451,15 +451,16 @@ class DBM(Model):
         return cdk
                 
     def fit(self, dataset, batch_size=128, epochs=10, frames=6):
-        """Fits a new RBM model.
+        """Fits a new DBM model.
 
         Args:
             dataset (torch.utils.data.Dataset): A Dataset object containing the training data.
             batch_size (int): Amount of samples per batch.
             epochs (int): Number of training epochs.
+            frames (int): Number of frames per video clip.
 
         Returns:
-            MSE (mean squared error) and log pseudo-likelihood from the training step.
+            MSE (mean squared error) from the training step.
 
         """
 
@@ -499,11 +500,6 @@ class DBM(Model):
                     # Normalizing the samples' batch
                     sps = ((sps - torch.mean(sps, 0, True)) / (torch.std(sps, 0, True) + 10e-6)).detach()
                 
-                    # Checking whether GPU is avaliable and if it should be used
-                    if self.device == 'cuda':
-                    # Applies the GPU usage to the data
-                        sps = sps.cuda()
-
                     # Performs the mean-field approximation
                     mf = self.mean_field(sps)
 
@@ -672,4 +668,4 @@ class DBM(Model):
             # Calculates the outputs of current model
             #x, _ = model.hidden_sampling(x)
 
-        return self.mean_field(x)[self.n_layers-1].detach()
+        return self.mean_field(x)[self.n_layers].detach()

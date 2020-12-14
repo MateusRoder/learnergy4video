@@ -3,3 +3,5 @@ learnergy4video.code-workspace
 *.log
 __pycache__/
 *.pyc
+*.png
+*.pth
