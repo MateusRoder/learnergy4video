@@ -364,7 +364,7 @@ class DBN(Model):
             # Calculates the outputs of current model
             x, _ = model.hidden_sampling(x)
 
-        return x
+        return x.detach()
 
     def reconstruct(self, x):
         """Performs a reconstruction pass over the data.

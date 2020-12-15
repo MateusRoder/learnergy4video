@@ -374,19 +374,9 @@ class DBM(Model):
 
         return mse, pl
 
-    def mean_field(self, samples):
-        """Mean-Field approximation.
-        Args:
-            samples (torch.tensor): Samples containing the training data.
-        Returns:
-            Approximated probabilities, i.e., P(v|h1), P(h1|v,h2), etc.
-        """
-
-        # Useful variables initialization
+    def fast_infer(self, samples):
+        mf = [samples]
         hidden_probs = samples
-        samples2 = samples
-        mf = [samples2]
-
         # Performing the fast inference
         for model in self.models:
             # Flattening the hidden probabilities
@@ -396,19 +386,36 @@ class DBM(Model):
             hidden_probs, _ = model.hidden_sampling(hidden_probs)
             mf.append(hidden_probs.detach())
 
+        return mf
+
+    def mean_field(self, mf):
+        """Mean-Field approximation.
+        Args:
+            mf (list of torch.tensor): Mean-Field probabilities containing the training data.
+        Returns:
+            Approximated probabilities, i.e., P(v|h1), P(h1|v,h2), etc.
+        """
+
+        # Useful variables initialization
+        #hidden_probs = samples
+        hidden_probs = mf[0]
+        samples2 = mf[0]
+        
         # Performing the variational inference:
-        for i in range(self.m_steps):
-            for j in range(self.n_layers-1):
+        for i in range(self.m_steps):            
+            for j in range(1, self.n_layers):
                 mf[j] = torch.sigmoid(
-                    	torch.matmul(samples2, self.models[j].W) + torch.matmul(mf[j + 1], self.models[j + 1].W.t()) +
-                    	self.models[j].b).detach()
+                    	torch.matmul(samples2, self.models[j-1].W) + torch.matmul(mf[j+1], self.models[j].W.t()) +
+                    	self.models[j-1].b).detach()
+                #mf[j] = torch.sigmoid(
+                #    	torch.matmul(samples2, self.models[j].W) + torch.matmul(mf[j + 1], self.models[j + 1].W.t()) +
+                #    	self.models[j].b).detach()
                 samples2 = mf[j]
 
-            mf[j + 1] = torch.sigmoid(torch.matmul(mf[j], self.models[j+1].W) + self.models[j+1].b).detach()
-            samples2 = samples
+            mf[j + 1] = torch.sigmoid(torch.matmul(mf[j], self.models[j].W) + self.models[j].b).detach()            
+            samples2 = mf[0]
 
-        mf[0] = torch.sigmoid(
-                torch.matmul(mf[1], self.models[0].W.t()) + self.models[0].a).detach()
+        #mf[0] = (torch.matmul(mf[1], self.models[0].W.t()) + self.models[0].a).detach()
 
         return mf
 
@@ -466,7 +473,8 @@ class DBM(Model):
 
 
         # Transforming the dataset into training batches
-        batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=workers, collate_fn=collate_fn)
+        batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True, 
+                            num_workers=workers, collate_fn=collate_fn)
         
         # For every epoch
         for e in range(epochs):
@@ -500,8 +508,13 @@ class DBM(Model):
                     # Normalizing the samples' batch
                     sps = ((sps - torch.mean(sps, 0, True)) / (torch.std(sps, 0, True) + 10e-6)).detach()
                 
+                    #if ii < 2 and e == 0:
+                        # Performs the fast inference
+                    mf = self.fast_infer(sps)
+                    
                     # Performs the mean-field approximation
-                    mf = self.mean_field(sps)
+                    #mf[0] = sps
+                    mf = self.mean_field(mf)
 
                     # Performs the Gibbs sampling procedure
                     visible_states = self.gibbs_sampling(sps)
@@ -585,75 +598,33 @@ class DBM(Model):
         return mse #,pl, cst
 
 
-    def reconstruct(self, dataset):
+    def reconstruct(self, samples):
         """Reconstructs batches of new samples.
         Args:
-            dataset (torch.utils.data.Dataset): A Dataset object containing the training data.
+            samples (torch.tensor): Samples containing the normalized training data for a single frame.
         Returns:
             Reconstruction error and visible probabilities, i.e., P(v|h).
         """
 
         logger.info('Reconstructing new samples ...')
 
-        # Resetting MSE to zero
-        mse = 0
-
         # Defining the batch size as the amount of samples in the dataset
-        batch_size = len(dataset)
+        batch_size = samples.size(0)
 
-        # Transforming the dataset into training batches
-        batches = DataLoader(dataset, batch_size=batch_size,
-                             shuffle=False, num_workers=workers)
+        mf = self.fast_infer(samples)                    
+        # Performs the mean-field approximation
+        mf[0] = samples
 
-        # For every batch
-        for samples, _ in tqdm(batches):
-            # Flattening the samples' batch
-            samples = samples.reshape(batch_size, self.models[0].n_visible)
+        # Mean-Field reconstruction
+        x = self.mean_field(mf)[0].detach()
 
-            # Checking whether GPU is avaliable and if it should be used
-            if self.device == 'cuda':
-                # Applies the GPU usage to the data
-                samples = samples.cuda()
-
-            # Applying the initial hidden probabilities as the samples
-            hidden_probs = samples
-
-            # For every possible model (RBM)
-            for model in self.models:
-                # Flattening the hidden probabilities
-                hidden_probs = hidden_probs.reshape(
-                    batch_size, model.n_visible)
-
-                # Performing a hidden layer sampling
-                hidden_probs, _ = model.hidden_sampling(
-                    hidden_probs)
-
-            # Applying the initial visible probabilities as the hidden probabilities
-            visible_probs = hidden_probs
-
-            # For every possible model (RBM)
-            for model in reversed(self.models):
-                # Flattening the visible probabilities
-                visible_probs = visible_probs.reshape(
-                    batch_size, model.n_hidden)
-
-                # Performing a visible layer sampling
-                visible_probs, visible_states = model.visible_sampling(
-                    visible_probs)
-
-            # Calculating current's batch reconstruction MSE
-            batch_mse = torch.div(
-                torch.sum(torch.pow(samples - visible_states, 2)), batch_size)
-
-            # Summing up to reconstruction's MSE
-            mse += batch_mse
-
-        # Normalizing the MSE with the number of batches
-        mse /= len(batches)
+        # Calculating current's batch reconstruction MSE
+        mse = torch.div(
+                torch.sum(torch.pow(samples - x, 2)), batch_size)
 
         logger.info('MSE: %f', mse)
 
-        return mse, visible_probs
+        return mse, x
 
     def forward(self, x):
         """Performs a forward pass over the data.
@@ -668,4 +639,8 @@ class DBM(Model):
             # Calculates the outputs of current model
             #x, _ = model.hidden_sampling(x)
 
-        return self.mean_field(x)[self.n_layers].detach()
+        mf = self.fast_infer(x)
+        # Performs the mean-field approximation
+        mf[0] = x
+
+        return self.mean_field(mf)[self.n_layers].detach()
