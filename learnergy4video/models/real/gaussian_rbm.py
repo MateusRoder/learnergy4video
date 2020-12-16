@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 from tqdm import tqdm
 from torch.utils.data import DataLoader, Dataset
-from torch.utils.data.dataloader import default_collate
+
 from PIL import Image
 from learnergy4video.visual.image import _rasterize
 from learnergy4video.utils.collate import collate_fn

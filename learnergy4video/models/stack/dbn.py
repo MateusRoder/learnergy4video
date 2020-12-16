@@ -279,17 +279,13 @@ class DBN(Model):
         # Initializing MSE and pseudo-likelihood as lists
         mse, pl, custo = [], [], []
 
-
-        # Transforming the dataset into training batches
-        #batches = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=1)
-        d = dataset
-        # For every possible model (RBM)
+        # For every possible model (-RBM)
         for i, model in enumerate(self.models):
             logger.info(f'Fitting layer {i+1}/{self.n_layers} ...')
 
             if i == 0:
                 # Fits the RBM
-                model_mse, model_pl, cst = model.fit(d, batch_size, epochs[i], frames)
+                model_mse, model_pl, cst = model.fit(dataset, batch_size, epochs[i], frames)
 
                 # Appending the metrics
                 mse.append(model_mse.item())
@@ -298,7 +294,7 @@ class DBN(Model):
                 self.dump(mse=model_mse.item(), pl=model_pl.item(), fe=cst.item())
 
             else:
-                batches = DataLoader(d, batch_size=batch_size, shuffle=True, num_workers=workers, collate_fn=collate_fn)
+                batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=workers, collate_fn=collate_fn)
                 for ep in range(epochs[i]): # iterate over epochs for model 'i'
                     logger.info(f'Epoch {ep+1}/{epochs[i]}')
                     mse2, pl2, cst2 = 0, 0, 0
@@ -341,12 +337,10 @@ class DBN(Model):
                     custo.append(cst2.item())
 
                     logger.info(f'MSE: {mse2.item()} | log-PL: {pl2.item()} | Cost: {cst2.item()}')
+
                     end = time.time()
                     model.dump(mse=mse2.item(), pl=pl2.item(), fe=cst2.item(), time=end-start)
                     self.dump(mse=mse2.item(), pl=pl2.item(), fe=cst2.item())
-
-            # Gathers the transform callable from current dataset
-            transform = None
 
         return mse, pl
 

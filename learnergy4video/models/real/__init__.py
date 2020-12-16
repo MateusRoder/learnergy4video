@@ -5,3 +5,4 @@ from learnergy4video.models.real.gaussian_conv_rbm import GaussianConvRBM
 from learnergy4video.models.real.spec_conv_rbm import SpecConvRBM
 from learnergy4video.models.real.gaussian_rbm import (GaussianRBM, VarianceGaussianRBM)
 from learnergy4video.models.real.sigmoid_rbm import SigmoidRBM
+from learnergy4video.models.real.spec_rbm import SpecRBM
