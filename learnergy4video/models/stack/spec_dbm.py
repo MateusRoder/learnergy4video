@@ -602,6 +602,18 @@ class SpecDBM(Model):
 
         # Defining the batch size as the amount of samples in the dataset
         batch_size = samples.size(0)
+        frames = samples.size(1)
+
+        for fr in range(1, frames):
+            samples[:, 0, :, :] += samples[:, fr, :, :]
+
+        samples = samples[:, 0, :, :]
+
+        # Flattening the samples' batch                    
+        samples = samples.view(samples.size(0), self.n_visible)
+
+        # Normalizing the samples' batch
+        samples = ((samples - torch.mean(samples, 0, True)) / (torch.std(samples, 0, True) + 10e-6)).detach()
 
         mf = self.fast_infer(samples)                    
         # Performs the mean-field approximation
@@ -619,21 +631,31 @@ class SpecDBM(Model):
 
         return mse, visible_states
 
-    def forward(self, x):
+    def forward(self, samples):
         """Performs a forward pass over the data.
         Args:
-            x (torch.Tensor): An input tensor for computing the forward pass.
+            samples (torch.Tensor): An input tensor for computing the forward pass.
         Returns:
             A tensor containing the DBN's outputs.
         """
 
-        # For every possible model
-        #for model in self.models:
-            # Calculates the outputs of current model
-            #x, _ = model.hidden_sampling(x)
+        frames = samples.size(1)
 
-        mf = self.fast_infer(x)
+        for fr in range(1, frames):
+            samples[:, 0, :, :] += samples[:, fr, :, :]
+
+        samples = samples[:, 0, :, :]
+
+        # Flattening the samples' batch                    
+        samples = samples.view(samples.size(0), self.n_visible)
+
+        # Normalizing the samples' batch
+        samples = ((samples - torch.mean(samples, 0, True)) / (torch.std(samples, 0, True) + 10e-6)).detach()
+
+        # Performs the fast inference
+        mf = self.fast_infer(samples)
+
         # Performs the mean-field approximation
-        mf[0] = x
+        mf[0] = samples
 
         return self.mean_field(mf)[self.n_layers].detach()
