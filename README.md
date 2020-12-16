@@ -62,15 +62,17 @@ learnergy4video is based on the following structure, and you should pay attentio
     - math
         - scale
     - models
-        - binary
-            - conv_rbm
-            - discriminative_rbm (needs the portability to video)
-            - dropout_rbm (needs the portability to video)
-            - e_dropout_rbm (needs the portability to video)
-            - rbm (keep it original, videos cannot be binarized)
-        - real
-            - gaussian_conv_rbm        
+        - binary (keep it original, videos cannot be binarized)
+            - conv_rbm 
+            - discriminative_rbm (needs the portability to continuous input)
+            - dropout_rbm
+            - e_dropout_rbm (needs the portability to continuous input)
+            - rbm
+        - real            
+            - gaussian_conv_rbm
             - gaussian_rbm
+            - dropout_grbm (to implement)
+            - e_dropout_grbm (to implement)
             - sigmoid_rbm
             - spec_conv_rbm
         - stack
@@ -79,6 +81,7 @@ learnergy4video is based on the following structure, and you should pay attentio
             - conv_dbn
             - spec_conv_dbn
             - dbm
+            - spec_dbm (to implement)
     - utils
         - constants
         - exception
