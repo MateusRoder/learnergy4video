@@ -56,8 +56,11 @@ class DBM(Model):
         # Override its parent class
         super(DBM, self).__init__(use_gpu=use_gpu)
 
+        # Shape of visible input
+        self.visible_shape = n_visible
+
         # Amount of visible units
-        self.n_visible = n_visible
+        self.n_visible = int(n_visible[0]*n_visible[1])
 
         # Amount of hidden units per layer
         self.n_hidden = n_hidden
@@ -116,6 +119,20 @@ class DBM(Model):
 
         logger.info('Class overrided.')
         logger.debug('Number of layers: %d.', self.n_layers)
+
+    @property
+    def visible_shape(self):
+        """int: Shape of visible layer.
+        """
+
+        return self._visible_shape
+
+    @visible_shape.setter
+    def visible_shape(self, visible_shape):
+        if not isinstance(visible_shape, (list, tuple)):
+            raise e.TypeError('`visible_shape` should be a list or tuple')
+
+        self._visible_shape = visible_shape
 
     @property
     def n_visible(self):
@@ -507,13 +524,11 @@ class DBM(Model):
 
                     # Normalizing the samples' batch
                     sps = ((sps - torch.mean(sps, 0, True)) / (torch.std(sps, 0, True) + 10e-6)).detach()
-                
-                    #if ii < 2 and e == 0:
-                        # Performs the fast inference
+                                
+                    # Performs the fast inference
                     mf = self.fast_infer(sps)
                     
                     # Performs the mean-field approximation
-                    #mf[0] = sps
                     mf = self.mean_field(mf)
 
                     # Performs the Gibbs sampling procedure
@@ -573,8 +588,7 @@ class DBM(Model):
                 if ii % 100 == 99:
                     print('MSE:', (mse/ii).item(), 'Cost:', cst/ii)
                     w8 = self.models[0].W.cpu().detach().numpy()
-                    #img = _rasterize(w8.T, img_shape=(96, 128), tile_shape=(30, 30), tile_spacing=(1, 1))
-                    img = _rasterize(w8.T, img_shape=(72, 96), tile_shape=(30, 30), tile_spacing=(1, 1))
+                    img = _rasterize(w8.T, img_shape=(self.visible_shape[0], self.visible_shape[1]), tile_shape=(30, 30), tile_spacing=(1, 1))
                     im = Image.fromarray(img)
                     im.save('w8_fit_ucf101.png')
 
@@ -583,17 +597,17 @@ class DBM(Model):
             # Normalizing the MSE and pseudo-likelihood with the number of batches
             mse /= len(batches)
             #pl /= len(batches)
-            #cst /= len(batches)
+            cst /= len(batches)
 
             # Calculating the time of the epoch's ending
             end = time.time()
 
             # Dumps the desired variables to the model's history
             #self.dump(mse=mse.item(), pl=pl.item(), fe=cst.item(), time=end-start)
-            self.dump(mse=mse.item(), time=end-start)
+            self.dump(mse=mse.item(), fe=cst.item(), time=end-start)
             
             #logger.info(f'MSE: {mse} | log-PL: {pl} | Cost: {cst}')
-            logger.info(f'MSE: {mse}')
+            logger.info(f'MSE: {mse} | Cost: {cst}')
 
         return mse #,pl, cst
 
@@ -616,15 +630,16 @@ class DBM(Model):
         mf[0] = samples
 
         # Mean-Field reconstruction
-        x = self.mean_field(mf)[0].detach()
+        x = self.mean_field(mf)[1].detach()
+        _, visible_states = self.models[0].visible_sampling(x)
 
         # Calculating current's batch reconstruction MSE
         mse = torch.div(
-                torch.sum(torch.pow(samples - x, 2)), batch_size)
+                torch.sum(torch.pow(samples - visible_states, 2)), batch_size)
 
         logger.info('MSE: %f', mse)
 
-        return mse, x
+        return mse, visible_states
 
     def forward(self, x):
         """Performs a forward pass over the data.
