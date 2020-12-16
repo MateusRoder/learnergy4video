@@ -81,7 +81,7 @@ learnergy4video is based on the following structure, and you should pay attentio
             - conv_dbn
             - spec_conv_dbn
             - dbm
-            - spec_dbm (to implement)
+            - spec_dbm (testing...)
     - utils
         - constants
         - exception
