@@ -109,21 +109,21 @@ class GaussianConvRBM(ConvRBM):
 
         return probs, probs
 
-    def fit(self, samples, batch_size=128, epochs=10):
-        """Fits a new RBM model.
+    def fit(self, samples, batch_size=128, epochs=1):
+        """Fits a new Conv-GRBM model.
 
         Args:
-            dataset (torch.utils.data.Dataset): A Dataset object containing the training data.
+            samples (torch.tensor): Samples containing the training data.
             batch_size (int): Amount of samples per batch.
             epochs (int): Number of training epochs.
 
         Returns:
-            MSE (mean squared error) and log pseudo-likelihood from the training step.
+            MSE (mean squared error) from the training step.
 
         """
 
         # Resetting epoch's MSE to zero
-        mse, batch_mse = 0, 0
+        batch_mse = 0
 
         #frames = samples.size(1)
 

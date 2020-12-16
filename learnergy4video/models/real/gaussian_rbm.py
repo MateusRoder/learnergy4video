@@ -121,6 +121,7 @@ class GaussianRBM(RBM):
         else:
             # Gathers the states as usual
             states = activations
+
         proba = torch.sigmoid(activations)
 
         return proba, activations
@@ -151,12 +152,9 @@ class GaussianRBM(RBM):
 
             # Resetting epoch's MSE and pseudo-likelihood to zero
             mse, pl, cst = 0, 0, 0
+            ii = 1
 
             # For every batch
-            #for samples, cc in batches:
-            #inner = tqdm.tqdm(total=len(batches), desc='Batch', position=1)
-            #for ii, batch in enumerate(batches):
-            ii = 1
             for samples, y in tqdm(batches):
                 #samples, y = batch
                 #samples = torch.tensor(samples, requires_grad=False)
@@ -178,16 +176,11 @@ class GaussianRBM(RBM):
                     # Normalizing the samples' batch
                     sps = ((sps - torch.mean(sps, 0, True)) / (torch.std(sps, 0, True) + c.EPSILON)).detach()
                 
-                    # Checking whether GPU is avaliable and if it should be used
-                    if self.device == 'cuda':
-                    # Applies the GPU usage to the data
-                        sps = sps.cuda()
-
                     # Performs the Gibbs sampling procedure
                     _, _, _, _, visible_states = self.gibbs_sampling(sps)
 
                     # Calculates the loss for further gradients' computation
-                    cost = cost + torch.mean(self.energy(sps)) - \
+                    cost += torch.mean(self.energy(sps)) - \
                         torch.mean(self.energy(visible_states))
 
                     # Detaching the visible states from GPU for further computation
@@ -209,7 +202,7 @@ class GaussianRBM(RBM):
                     cst2 += cost.detach()
 
                 # Computing the gradients
-                cost = cost/frames
+                cost /= frames
                 cost.backward()
 
                 # Updating the parameters
@@ -278,11 +271,6 @@ class GaussianRBM(RBM):
         for _, batch in enumerate(batches):
             samples, y = batch
             samples = samples.view(samples.size(0)*samples.size(1), self.n_visible)
-
-            #med = torch.mean(samples, 1).view(samples.size(0), 1)
-            #sd = torch.std(samples, 1).view(samples.size(0), 1)
-            #samples-=med
-            #samples/=sd
 
             # Checking whether GPU is avaliable and if it should be used
             if self.device == 'cuda':

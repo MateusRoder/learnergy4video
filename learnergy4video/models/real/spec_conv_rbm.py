@@ -113,12 +113,12 @@ class SpecConvRBM(ConvRBM):
             epochs (int): Number of training epochs.
 
         Returns:
-            MSE (mean squared error) and log pseudo-likelihood from the training step.
+            MSE (mean squared error) from the training step.
 
         """
 
         # Resetting epoch's MSE to zero
-        mse, batch_mse = 0, 0
+        batch_mse = 0
 
         #frames = samples.size(1)
 

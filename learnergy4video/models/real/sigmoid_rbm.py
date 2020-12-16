@@ -4,11 +4,13 @@ import torch
 import torch.nn.functional as F
 
 from tqdm import tqdm
+from torch.utils.data import DataLoader, Dataset
+
 import learnergy4video.utils.exception as e
 import learnergy4video.utils.logging as l
 from learnergy4video.models.binary import RBM
-from torch.utils.data import DataLoader, Dataset
-from torch.utils.data.dataloader import default_collate
+from learnergy4video.utils.collate import collate_fn
+
 #from PIL import Image
 #from learnergy4video.visual.image import _rasterize
 
@@ -82,42 +84,25 @@ class SigmoidRBM(RBM):
         """Fits a new RBM model.
 
         Args:
-            dataset (torch.utils.data.Dataset): A Dataset object containing the training data.
+            sps (torch.tensor): Sampels containing the training data.
             batch_size (int): Amount of samples per batch.
             epochs (int): Number of training epochs.
+            frames (int): Number of frames.
 
         Returns:
-            MSE (mean squared error) and log pseudo-likelihood from the training step.
+            MSE (mean squared error), log pseudo-likelihood and free-energy from the training step.
 
         """
-        def collate_fn(batches):
-            try:
-                # remove audio from the batch
-                batches = [(d[0], d[2]) for d in batches]
-                return default_collate(batches)
-            except:
-                return default_collate(batches)
-
-        # Transforming the dataset into training batches
-        #try:
-        #    batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=20, collate_fn=collate_fn)
-        #except:
-        #    batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=10, collate_fn=collate_fn)
-
+        
         # For every epoch
-        for e in range(epochs):
+        for _ in range(epochs):
             #logger.info(f'Epoch {e+1}/{epochs}')
 
             # Calculating the time of the epoch's starting
             start = time.time()
 
             # Resetting epoch's MSE and pseudo-likelihood to zero
-            mse = 0
-            pl = 0
-            cst = 0
-            #sps.requires_grad=False
-            #sps = torch.tensor(sps, requires_grad=False)
-            #sps.requires_grad=False
+            mse, pl, cst = 0, 0, 0
 
             # Checking whether GPU is avaliable and if it should be used
             if self.device == 'cuda':
