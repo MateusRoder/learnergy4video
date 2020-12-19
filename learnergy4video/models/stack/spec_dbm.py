@@ -1,7 +1,6 @@
 import time
 import torch
 from torch.utils.data import DataLoader
-from torch.utils.data.dataloader import default_collate
 from tqdm import tqdm
 from PIL import Image
 from learnergy4video.visual.image import _rasterize
@@ -35,12 +34,12 @@ class SpecDBM(Model):
         .
     """
 
-    def __init__(self, model='gaussian', n_visible=128, n_hidden=(128,), steps=(1,),
-                 learning_rate=(0.1,), momentum=(0,), decay=(0,), temperature=(1,), use_gpu=False):
+    def __init__(self, model='spectral', n_visible=(72, 96), n_hidden=(128,), steps=(1,),
+                 learning_rate=(0.1,), momentum=(0,), decay=(0,), temperature=(1,), use_gpu=True):
         """Initialization method.
         Args:
             model (str): Indicates which type of RBM should be used to compose the DBM.
-            n_visible (int): Amount of visible units.
+            n_visible (tuple): Input shape of visible units.
             n_hidden (tuple): Amount of hidden units per layer.
             steps (tuple): Number of Gibbs' sampling steps per layer.
             learning_rate (tuple): Learning rate per layer.
@@ -410,19 +409,14 @@ class SpecDBM(Model):
         """
 
         # Useful variables initialization
-        #hidden_probs = samples
-        hidden_probs = mf[0]
         samples2 = mf[0]
         
         # Performing the variational inference:
-        for i in range(self.m_steps):            
+        for _ in range(self.m_steps):            
             for j in range(1, self.n_layers):
                 mf[j] = torch.sigmoid(
                     	torch.matmul(samples2, self.models[j-1].W) + torch.matmul(mf[j+1], self.models[j].W.t()) +
                     	self.models[j-1].b).detach()
-                #mf[j] = torch.sigmoid(
-                #    	torch.matmul(samples2, self.models[j].W) + torch.matmul(mf[j + 1], self.models[j + 1].W.t()) +
-                #    	self.models[j].b).detach()
                 samples2 = mf[j]
 
             mf[j + 1] = torch.sigmoid(torch.matmul(mf[j], self.models[j].W) + self.models[j].b).detach()            

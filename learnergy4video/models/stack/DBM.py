@@ -9,7 +9,7 @@ from learnergy4video.visual.image import _rasterize
 from learnergy4video.utils.collate import collate_fn
 import learnergy4video.utils.exception as e
 import learnergy4video.utils.logging as l
-from learnergy4video.core import Dataset, Model
+from learnergy4video.core import Model
 from learnergy4video.models.binary import RBM
 from learnergy4video.models.real import (GaussianRBM, SigmoidRBM)
 
@@ -36,12 +36,12 @@ class DBM(Model):
         .
     """
 
-    def __init__(self, model='gaussian', n_visible=128, n_hidden=(128,), steps=(1,),
-                 learning_rate=(0.1,), momentum=(0,), decay=(0,), temperature=(1,), use_gpu=False):
+    def __init__(self, model='gaussian', n_visible=(72, 96), n_hidden=(128,), steps=(1,),
+                 learning_rate=(0.1,), momentum=(0,), decay=(0,), temperature=(1,), use_gpu=True):
         """Initialization method.
         Args:
             model (str): Indicates which type of RBM should be used to compose the DBM.
-            n_visible (int): Amount of visible units.
+            n_visible (tuple): Input shape of visible units.
             n_hidden (tuple): Amount of hidden units per layer.
             steps (tuple): Number of Gibbs' sampling steps per layer.
             learning_rate (tuple): Learning rate per layer.
@@ -286,6 +286,7 @@ class DBM(Model):
             dataset (torch.utils.data.Dataset | Dataset): A Dataset object containing the training data.
             batch_size (int): Amount of samples per batch.
             epochs (list): Number of training epochs per layer.
+            frames (int): Number of input frames.
         Returns:
             MSE (mean squared error) and log pseudo-likelihood from the training step.
         """
@@ -311,9 +312,6 @@ class DBM(Model):
                 # Fits the RBM
                 model_mse, model_pl, cst = model.fit(dataset, batch_size, epochs[i], frames)
 
-                #model.c1 = 1.0
-                #model.c2 = 1.0
-
                 # Appending the metrics
                 mse.append(model_mse.item())
                 pl.append(model_pl.item())
@@ -327,7 +325,10 @@ class DBM(Model):
                 else:
                     model.c1 = 2.0
                     model.c2 = 2.0
-                batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=workers, collate_fn=collate_fn)
+
+                batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, 
+                num_workers=workers, collate_fn=collate_fn)
+
                 for ep in range(epochs[i]): # iterate over epochs for model 'i'
                     logger.info(f'Epoch {ep+1}/{epochs[i]}')
                     mse2, pl2, cst2 = 0, 0, 0
@@ -379,12 +380,6 @@ class DBM(Model):
                     model.dump(mse=mse2.item(), pl=pl2.item(), fe=cst2.item(), time=end-start)
                     self.dump(mse=mse2.item(), pl=pl2.item(), fe=cst2.item())
 
-            # Gathers the transform callable from current dataset
-            transform = None
-
-            #if i < (len(self.models)-1) :
-            #    with torch.no_grad(): model.W /= 2
-
         for model in self.models:
             model.c1 = 1.0
             model.c2 = 1.0
@@ -413,26 +408,19 @@ class DBM(Model):
             Approximated probabilities, i.e., P(v|h1), P(h1|v,h2), etc.
         """
 
-        # Useful variables initialization
-        #hidden_probs = samples
-        hidden_probs = mf[0]
+        # Useful variable initialization
         samples2 = mf[0]
         
         # Performing the variational inference:
-        for i in range(self.m_steps):            
+        for _ in range(self.m_steps):
             for j in range(1, self.n_layers):
                 mf[j] = torch.sigmoid(
                     	torch.matmul(samples2, self.models[j-1].W) + torch.matmul(mf[j+1], self.models[j].W.t()) +
                     	self.models[j-1].b).detach()
-                #mf[j] = torch.sigmoid(
-                #    	torch.matmul(samples2, self.models[j].W) + torch.matmul(mf[j + 1], self.models[j + 1].W.t()) +
-                #    	self.models[j].b).detach()
                 samples2 = mf[j]
 
             mf[j + 1] = torch.sigmoid(torch.matmul(mf[j], self.models[j].W) + self.models[j].b).detach()            
             samples2 = mf[0]
-
-        #mf[0] = (torch.matmul(mf[1], self.models[0].W.t()) + self.models[0].a).detach()
 
         return mf
 
@@ -541,17 +529,13 @@ class DBM(Model):
 
                         cost = torch.mean(model.energy(mf[idx])) - \
                                   torch.mean(model.energy(visible_states[idx]))
-                        cst2+=cost.detach().item()
-                        #cost[idx] = cost[idx] + torch.mean(model.energy(mf[idx])) - \
-
+                        cst2+=cost.detach().item()                        
+                        
                         # Computing the gradients    
                         cost.backward()
 
                         # Updating the parameters
                         model.optimizer.step()
-
-                    # Detaching the visible states from GPU for further computation
-                    #visible_states = visible_states.detach()
 
                     # Gathering the size of the batch
                     batch_size2 = sps.size(0)
@@ -563,19 +547,10 @@ class DBM(Model):
                     # Calculating the current's batch logarithm pseudo-likelihood
                     #batch_pl = self.pseudo_likelihood(sps).detach()
 
-                    # Updating the parameters
-                    #for model in self.models:
-                        #model.optimizer.step()
-
                     # Summing up to epochs' MSE and pseudo-likelihood
                     mse2 += batch_mse
                     #pl2 += batch_pl
                     #cst2 += cost.detach()
-
-                    # Initializing the gradient
-                    #for model in self.models:
-                        #model.optimizer.zero_grad()
-
 
                 mse2 /= frames
                 cst2 /= (frames*self.n_layers)
@@ -644,15 +619,10 @@ class DBM(Model):
     def forward(self, x):
         """Performs a forward pass over the data.
         Args:
-            x (torch.Tensor): An input tensor for computing the forward pass.
+            x (torch.Tensor): A normalized input tensor for computing the forward pass.
         Returns:
-            A tensor containing the DBN's outputs.
+            A tensor containing the DBM's outputs.
         """
-
-        # For every possible model
-        #for model in self.models:
-            # Calculates the outputs of current model
-            #x, _ = model.hidden_sampling(x)
 
         mf = self.fast_infer(x)
         # Performs the mean-field approximation
