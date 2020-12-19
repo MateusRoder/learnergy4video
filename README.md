@@ -74,6 +74,7 @@ learnergy4video is based on the following structure, and you should pay attentio
             - dropout_grbm (to implement)
             - e_dropout_grbm (to implement)
             - sigmoid_rbm
+            - spec_rbm
             - spec_conv_rbm
         - stack
             - dbn
