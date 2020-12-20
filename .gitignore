@@ -1,7 +1,8 @@
 *.json
-learnergy4video.code-workspace
+*.code-workspace
 *.log
 __pycache__/
 *.pyc
 *.png
 *.pth
+*.csv

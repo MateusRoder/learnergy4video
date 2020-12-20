@@ -1,18 +1,18 @@
 import time
 import torch
 import tqdm
+
+from torch.utils.data import DataLoader
+
 import learnergy4video.utils.constants as c
 import learnergy4video.utils.exception as e
 import learnergy4video.utils.logging as l
-
-from torch.utils.data.dataloader import default_collate
-from torch.utils.data import DataLoader
 
 from learnergy4video.utils.collate import collate_fn
 from learnergy4video.core.dataset import Dataset
 from learnergy4video.core.model import Model
 from learnergy4video.models.binary import RBM
-from learnergy4video.models.real import GaussianRBM, SigmoidRBM
+from learnergy4video.models.real import GaussianRBM, SigmoidRBM, EDropoutRBM, EDropoutRBM_Inner
 
 import os
 workers = os.cpu_count()
@@ -26,7 +26,9 @@ logger = l.get_logger(__name__)
 MODELS = {
     'bernoulli': RBM,
     'gaussian': GaussianRBM,
-    'sigmoid': SigmoidRBM
+    'sigmoid': SigmoidRBM,
+    'edrop': EDropoutRBM,
+    'edrop_inner': EDropoutRBM_Inner
 }
 
 
@@ -37,18 +39,18 @@ class DBN(Model):
         Neural computation (2006).
     """
 
-    def __init__(self, model='gaussian', n_visible=128, n_hidden=[128], steps=[1],
-                 learning_rate=[0.1], momentum=[0], decay=[0], temperature=[1], use_gpu=False):
+    def __init__(self, model=['gaussian', 'sigmoid'], n_visible=(72, 96), n_hidden=(128,), steps=(1,),
+                 learning_rate=(0.1,), momentum=(0,), decay=(0,), temperature=(1,), use_gpu=True):
         """Initialization method.
         Args:
-            model (str): Indicates which type of RBM should be used to compose the DBN.
-            n_visible (int): Amount of visible units.
-            n_hidden (list): Amount of hidden units per layer.
-            steps (list): Number of Gibbs' sampling steps per layer.
-            learning_rate (list): Learning rate per layer.
-            momentum (list): Momentum parameter per layer.
-            decay (list): Weight decay used for penalization per layer.
-            temperature (list): Temperature factor per layer.
+            model (list of str): Indicates which type of RBM should be used to compose the DBN.
+            n_visible (tuple): Input shape of visible units.
+            n_hidden (tuple): Amount of hidden units per layer.
+            steps (tuple): Number of Gibbs' sampling steps per layer.
+            learning_rate (tuple): Learning rate per layer.
+            momentum (tuple): Momentum parameter per layer.
+            decay (tuple): Weight decay used for penalization per layer.
+            temperature (tuple): Temperature factor per layer.
             use_gpu (boolean): Whether GPU should be used or not.
         """
 
@@ -57,8 +59,11 @@ class DBN(Model):
         # Override its parent class
         super(DBN, self).__init__(use_gpu=use_gpu)
 
+        # Shape of visible input
+        self.visible_shape = n_visible
+
         # Amount of visible units
-        self.n_visible = n_visible
+        self.n_visible = int(n_visible[0]*n_visible[1])
 
         # Amount of hidden units per layer
         self.n_hidden = n_hidden
@@ -84,8 +89,6 @@ class DBN(Model):
         # List of models (RBMs)
         self.models = []
 
-        # self.fc = torch.nn.Linear(self.n_hidden[self.n_layers-1], 10)
-
         # For every possible layer
         for i in range(self.n_layers):
             # If it is the first layer
@@ -99,10 +102,10 @@ class DBN(Model):
                 n_input = self.n_hidden[i-1]
 
                 # After creating the first layer, we need to change the model's type to sigmoid
-                model = 'sigmoid'
+                #model[i] = 'sigmoid'
 
             # Creates an RBM
-            m = MODELS[model](n_input, self.n_hidden[i], self.steps[i],
+            m = MODELS[model[i]](n_input, self.n_hidden[i], self.steps[i],
                               self.lr[i], self.momentum[i], self.decay[i], self.T[i], use_gpu)
 
             # Appends the model to the list
@@ -115,6 +118,20 @@ class DBN(Model):
 
         logger.info('Class overrided.')
         logger.debug(f'Number of layers: {self.n_layers}.')
+
+    @property
+    def visible_shape(self):
+        """int: Shape of visible layer.
+        """
+
+        return self._visible_shape
+
+    @visible_shape.setter
+    def visible_shape(self, visible_shape):
+        if not isinstance(visible_shape, (list, tuple)):
+            raise e.TypeError('`visible_shape` should be a list or tuple')
+
+        self._visible_shape = visible_shape
 
     @property
     def n_visible(self):
@@ -134,15 +151,15 @@ class DBN(Model):
 
     @property
     def n_hidden(self):
-        """list: List of hidden units.
+        """tuple: Tuple of hidden units.
         """
 
         return self._n_hidden
 
     @n_hidden.setter
     def n_hidden(self, n_hidden):
-        if not isinstance(n_hidden, list):
-            raise e.TypeError('`n_hidden` should be a list')
+        if not isinstance(n_hidden, (list, tuple)):
+            raise e.TypeError('`n_hidden` should be a tuple')
 
         self._n_hidden = n_hidden
 
@@ -164,15 +181,15 @@ class DBN(Model):
 
     @property
     def steps(self):
-        """list: Number of steps Gibbs' sampling steps per layer.
+        """tuple: Number of steps Gibbs' sampling steps per layer.
         """
 
         return self._steps
 
     @steps.setter
     def steps(self, steps):
-        if not isinstance(steps, list):
-            raise e.TypeError('`steps` should be a list')
+        if not isinstance(steps, tuple):
+            raise e.TypeError('`steps` should be a tuple')
         if len(steps) != self.n_layers:
             raise e.SizeError(
                 f'`steps` should have size equal as {self.n_layers}')
@@ -181,15 +198,15 @@ class DBN(Model):
 
     @property
     def lr(self):
-        """list: Learning rate per layer.
+        """tuple: Learning rate per layer.
         """
 
         return self._lr
 
     @lr.setter
     def lr(self, lr):
-        if not isinstance(lr, list):
-            raise e.TypeError('`lr` should be a list')
+        if not isinstance(lr, tuple):
+            raise e.TypeError('`lr` should be a tuple')
         if len(lr) != self.n_layers:
             raise e.SizeError(
                 f'`lr` should have size equal as {self.n_layers}')
@@ -198,15 +215,15 @@ class DBN(Model):
 
     @property
     def momentum(self):
-        """list: Momentum parameter per layer.
+        """tuple: Momentum parameter per layer.
         """
 
         return self._momentum
 
     @momentum.setter
     def momentum(self, momentum):
-        if not isinstance(momentum, list):
-            raise e.TypeError('`momentum` should be a list')
+        if not isinstance(momentum, tuple):
+            raise e.TypeError('`momentum` should be a tuple')
         if len(momentum) != self.n_layers:
             raise e.SizeError(
                 f'`momentum` should have size equal as {self.n_layers}')
@@ -215,15 +232,15 @@ class DBN(Model):
 
     @property
     def decay(self):
-        """list: Weight decay per layer.
+        """tuple: Weight decay per layer.
         """
 
         return self._decay
 
     @decay.setter
     def decay(self, decay):
-        if not isinstance(decay, list):
-            raise e.TypeError('`decay` should be a list')
+        if not isinstance(decay, tuple):
+            raise e.TypeError('`decay` should be a tuple')
         if len(decay) != self.n_layers:
             raise e.SizeError(
                 f'`decay` should have size equal as {self.n_layers}')
@@ -232,15 +249,15 @@ class DBN(Model):
 
     @property
     def T(self):
-        """list: Temperature factor per layer.
+        """tuple: Temperature factor per layer.
         """
 
         return self._T
 
     @T.setter
     def T(self, T):
-        if not isinstance(T, list):
-            raise e.TypeError('`T` should be a list')
+        if not isinstance(T, tuple):
+            raise e.TypeError('`T` should be a tuple')
         if len(T) != self.n_layers:
             raise e.SizeError(f'`T` should have size equal as {self.n_layers}')
 

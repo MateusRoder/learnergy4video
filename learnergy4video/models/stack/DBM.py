@@ -1,17 +1,17 @@
 import time
 import torch
 from torch.utils.data import DataLoader
-from torch.utils.data.dataloader import default_collate
+
 from tqdm import tqdm
 from PIL import Image
 from learnergy4video.visual.image import _rasterize
 
-from learnergy4video.utils.collate import collate_fn
 import learnergy4video.utils.exception as e
 import learnergy4video.utils.logging as l
 from learnergy4video.core import Model
 from learnergy4video.models.binary import RBM
-from learnergy4video.models.real import (GaussianRBM, SigmoidRBM)
+from learnergy4video.utils.collate import collate_fn
+from learnergy4video.models.real import (GaussianRBM, SigmoidRBM, EDropoutRBM_Inner, EDropoutRBM)
 
 import os
 workers = os.cpu_count()
@@ -26,7 +26,9 @@ logger = l.get_logger(__name__)
 MODELS = {
     'bernoulli': RBM,
     'gaussian': GaussianRBM,
-    'sigmoid': SigmoidRBM
+    'sigmoid': SigmoidRBM,
+    'edrop': EDropoutRBM,
+    'edrop_inner': EDropoutRBM_Inner
 }
 
 
@@ -36,11 +38,11 @@ class DBM(Model):
         .
     """
 
-    def __init__(self, model='gaussian', n_visible=(72, 96), n_hidden=(128,), steps=(1,),
+    def __init__(self, model=['gaussian', 'sigmoid'], n_visible=(72, 96), n_hidden=(128,), steps=(1,),
                  learning_rate=(0.1,), momentum=(0,), decay=(0,), temperature=(1,), use_gpu=True):
         """Initialization method.
         Args:
-            model (str): Indicates which type of RBM should be used to compose the DBM.
+            model (list of str): Indicates which type of RBM should be used to compose the DBM.
             n_visible (tuple): Input shape of visible units.
             n_hidden (tuple): Amount of hidden units per layer.
             steps (tuple): Number of Gibbs' sampling steps per layer.
@@ -103,10 +105,10 @@ class DBM(Model):
                 n_input = self.n_hidden[i-1]
 
                 # After creating the first layer, we need to change the model's type to sigmoid
-                model = 'sigmoid'
+                #model = 'sigmoid'
 
             # Creates an RBM
-            m = MODELS[model](n_input, self.n_hidden[i], self.steps[i],
+            m = MODELS[model[i]](n_input, self.n_hidden[i], self.steps[i],
                               self.lr[i], self.momentum[i], self.decay[i], self.T[i], use_gpu)
 
             # Appends the model to the list

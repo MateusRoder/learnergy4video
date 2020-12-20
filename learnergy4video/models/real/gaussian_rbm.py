@@ -156,8 +156,7 @@ class GaussianRBM(RBM):
 
             # For every batch
             for samples, y in tqdm(batches):
-                #samples, y = batch
-                #samples = torch.tensor(samples, requires_grad=False)
+                
                 cost = 0
                 if self.device == 'cuda':
                     samples = samples.cuda()
@@ -168,7 +167,7 @@ class GaussianRBM(RBM):
                 mse2, pl2, cst2 = 0, 0, 0
 
                 for fr in range(frames):
-                    torch.autograd.set_detect_anomaly(True)
+                    #torch.autograd.set_detect_anomaly(True)
                     # Flattening the samples' batch
                     sps = samples[:, fr, :, :]
                     sps = sps.view(sps.size(0), self.n_visible)
