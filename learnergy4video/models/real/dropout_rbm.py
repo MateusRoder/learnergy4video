@@ -1,4 +1,4 @@
-"""Bernoulli-Bernoulli Restricted Boltzmann Machines with Dropout.
+"""Gaussian-Bernoulli Restricted Boltzmann Machines with Dropout.
 """
 
 import torch
@@ -9,12 +9,12 @@ from tqdm import tqdm
 
 import learnergy4video.utils.exception as e
 import learnergy4video.utils.logging as l
-from learnergy4video.models.binary import RBM
+from learnergy4video.models.real import GaussianRBM
 
 logger = l.get_logger(__name__)
 
 
-class DropoutRBM(RBM):
+class DropoutRBM(GaussianRBM):
     """A DropoutRBM class provides the basic implementation for
     Bernoulli-Bernoulli Restricted Boltzmann Machines along with a Dropout regularization.
 
@@ -41,7 +41,7 @@ class DropoutRBM(RBM):
 
         """
 
-        logger.info('Overriding class: RBM -> DropoutRBM.')
+        logger.info('Overriding class: GaussianRBM -> DropoutRBM.')
 
         # Override its parent class
         super(DropoutRBM, self).__init__(n_visible, n_hidden, steps, learning_rate,
@@ -83,7 +83,7 @@ class DropoutRBM(RBM):
         """
 
         # Calculating neurons' activations
-        activations = F.linear(v, self.W.t(), self.b)
+        activations = F.linear(v, self.c1*self.W.t(), self.b)
 
         # Sampling a dropout mask from Bernoulli's distribution
         mask = (torch.full((activations.size(0), activations.size(1)),

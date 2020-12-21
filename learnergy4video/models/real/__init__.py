@@ -7,3 +7,4 @@ from learnergy4video.models.real.gaussian_rbm import (GaussianRBM, VarianceGauss
 from learnergy4video.models.real.sigmoid_rbm import SigmoidRBM
 from learnergy4video.models.real.spec_rbm import SpecRBM
 from learnergy4video.models.real.e_dropout_rbm import EDropoutRBM, EDropoutRBM_Inner
+from learnergy4video.models.real.dropout_rbm import DropoutRBM

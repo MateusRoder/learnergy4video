@@ -12,6 +12,7 @@ import learnergy4video.utils.exception as ex
 import learnergy4video.utils.logging as l
 import learnergy4video.utils.constants as c
 from learnergy4video.models.real import GaussianRBM
+from learnergy4video.utils.collate import collate_fn
 
 import os
 workers = os.cpu_count()
@@ -170,7 +171,7 @@ class EDropoutRBM(GaussianRBM):
         """
 
         # Transforming the dataset into training batches
-        batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=workers)
+        batches = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=workers, collate_fn=collate_fn)
 
         # For every epoch
         for e in range(epochs):
