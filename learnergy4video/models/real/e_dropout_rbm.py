@@ -1,4 +1,4 @@
-"""Bernoulli-Bernoulli Restricted Boltzmann Machines with Energy-based Dropout.
+"""Gaussian-Bernoulli Restricted Boltzmann Machines with Energy-based Dropout.
 """
 
 import time
@@ -7,12 +7,14 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from  PIL import Image
 
 import learnergy4video.utils.exception as ex
 import learnergy4video.utils.logging as l
 import learnergy4video.utils.constants as c
 from learnergy4video.models.real import GaussianRBM
 from learnergy4video.utils.collate import collate_fn
+from learnergy4video.visual.image import _rasterize
 
 import os
 workers = os.cpu_count()
@@ -182,7 +184,7 @@ class EDropoutRBM(GaussianRBM):
 
             # Resetting epoch's MSE and pseudo-likelihood to zero
             mse, pl, cst = 0, 0, 0
-            #ii = 1
+            ii = 1
 
             # For every batch
             for samples, y in tqdm(batches):
@@ -258,6 +260,15 @@ class EDropoutRBM(GaussianRBM):
                 mse += mse2
                 pl  += pl2
                 cst += cst2
+
+                if ii % 100 == 99:
+                    print('MSE:', (mse/ii).item(), 'Cost:', (cst/ii).item())
+                    w8 = self.W.cpu().detach().numpy()
+                    img = _rasterize(w8.T, img_shape=(72, 96), tile_shape=(30, 30), tile_spacing=(1, 1))                    
+                    im = Image.fromarray(img)
+                    im.save('w8_edp_ucf101.png')
+
+                ii += 1
                 
             # Normalizing the MSE and pseudo-likelihood with the number of batches
             mse /= len(batches)
