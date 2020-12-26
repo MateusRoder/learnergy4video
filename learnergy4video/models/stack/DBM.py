@@ -70,6 +70,11 @@ class DBM(Model):
         # Number of layers
         self.n_layers = len(n_hidden)
 
+        # Sanity check for the inner models
+        if len(model) != self.n_layers:
+            for _ in range(len(model)-1, self.n_layers):
+                model.append("sigmoid")
+
         # Number of steps Gibbs' sampling steps
         self.steps = steps
 
@@ -581,7 +586,7 @@ class DBM(Model):
 
             # Dumps the desired variables to the model's history
             #self.dump(mse=mse.item(), pl=pl.item(), fe=cst.item(), time=end-start)
-            self.dump(mse=mse.item(), fe=cst.item(), time=end-start)
+            self.dump(mse=mse.item(), fe=cst, time=end-start)
             
             #logger.info(f'MSE: {mse} | log-PL: {pl} | Cost: {cst}')
             logger.info(f'MSE: {mse} | Cost: {cst}')
