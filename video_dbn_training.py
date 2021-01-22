@@ -5,7 +5,7 @@ import torch
 import torchvision
 from torch.utils.data import DataLoader, Dataset
 
-from learnergy4video.models.real import GaussianConvRBM as CRBM
+#from learnergy4video.models.real import GaussianConvRBM as CRBM
 from learnergy4video.models.stack import CDBN, SpecCDBN
 #from learnergy4video.models.stack.dbn import DBN
 from learnergy4video.utils.ucf2 import UCF101
@@ -30,7 +30,7 @@ if __name__ == '__main__':
     # Defining some input variables
     n_layers = 2
     n_filters = [16*2, 16*2, 16*2]
-    f_shape = [(7, 7), (5, 5), (5, 5)] # 9 for cifar dataset
+    f_shape = [(7, 7), (5, 5), (5, 5)]
     n_channels = 1
     batch_size = 2**7
     n_classes = 5

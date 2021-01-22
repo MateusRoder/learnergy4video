@@ -5,10 +5,10 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision
 from numpy import savetxt
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from torch.utils.data.dataloader import default_collate
 
-from learnergy4video.models.stack import CDBN, SpecCDBN
+#from learnergy4video.models.stack import CDBN, SpecCDBN
 from learnergy4video.utils.ucf2 import UCF101
 from learnergy4video.utils.hmdb import HMDB51
 

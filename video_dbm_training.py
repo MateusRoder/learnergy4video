@@ -3,8 +3,10 @@ import torch
 import torchvision
 
 from learnergy4video.models.stack.DBM import DBM
+from learnergy4video.models.stack.dbn import DBN
+from learnergy4video.models.stack.spec_dbm import SpecDBM
 from learnergy4video.utils.ucf2 import UCF101
-#from learnergy4video.utils.hmdb import HMDB51
+from learnergy4video.utils.hmdb import HMDB51
 
 import os
 workers = os.cpu_count()
@@ -27,13 +29,16 @@ if __name__ == '__main__':
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-        name = 'U1dbm_std'+str(j)+'.pth'
+        #name = 'U1dbm_std'+str(j)+'.pth'
+        #name = 'U1rbm_edr'+str(j)+'.pth'
+        #name = 'U3spec_dbm'+str(j)+'.pth'
         train = UCF101(root='/home/roder/RBM-Video/UCF-101', annotation_path='/home/roder/RBM-Video/ucf_split',
+        #train = HMDB51(root='/home/roder/RBM-Video/HMDB51', annotation_path='/home/roder/RBM-Video/HMDB51/splits',
                         frames_per_clip=frames_per_clip, num_workers=workers,
                         dim=[dy, dx], chn=1, transform=torchvision.transforms.Compose([
 		        torchvision.transforms.ToPILImage(),
         		torchvision.transforms.Resize((dy, dx)),
-		        torchvision.transforms.Grayscale(num_output_channels=1),               
+		        torchvision.transforms.Grayscale(num_output_channels=1),
 		        torchvision.transforms.PILToTensor()]))
         #train = HMDB51(train = True, root='./HMDB51', annotation_path='./HMDB51/splits', frames_per_clip=frames_per_clip, num_workers = 20)
 
@@ -41,20 +46,25 @@ if __name__ == '__main__':
         ep = 3
         hidden = 2000
      
-        model = DBM(model='gaussian', n_visible=dx*dy, n_hidden=(hidden, hidden), steps=(1,1),
-                    learning_rate=(0.0001, 0.00005), momentum=(0.5, 0.5), decay=(0,0), temperature=(1,1),
-                    use_gpu=True)
+        #model = SpecDBM(model='gaussian', n_visible=(dy, dx), n_hidden=(hidden, hidden, hidden), steps=(1,1,1),
+        #            learning_rate=(0.0001, 0.00005, 0.00005), momentum=(0.5, 0.5, 0.5), decay=(0,0,0), temperature=(1,1,1),
+        #            use_gpu=True)
+        #model = DBN(model=['edrop'], n_visible=(dy, dx), n_hidden=(hidden,), steps=(1,),
+        #            learning_rate=(0.0001,), momentum=(0.5,), decay=(0,), temperature=(1,),
+        #            use_gpu=True)
 
-        #model = torch.load("U1dbm_std0 (cópia).pth")
-        #model.eval()
-        #model.cuda()
+        model = torch.load("U1spec_dbm0.pth")
+        model.eval()
+        model.cuda()
+
         # Training a DBM
-        mse, pl = model.pretrain(train, batch_size=batch_size, epochs=[ep, ep], frames=frames_per_clip)
-        torch.save(model, name)
+        #mse, pl = model.pretrain(train, batch_size=batch_size, epochs=[ep, ep, ep], frames=frames_per_clip)
+        #torch.save(model, name)
 
         mse = model.fit(train, batch_size=batch_size, epochs=ep)
-        torch.save(model, name)
+        #torch.save(model, name)
 
-        #import classification_dbm
-        #from classification_dbm import exec_class
+        #import load_model
+        #import classification_sdbm
+        #from classification_sdbm import exec_class
         #exec_class(name, j)
