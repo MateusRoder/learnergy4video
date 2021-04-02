@@ -132,16 +132,5 @@ class UCF101(VisionDataset):
         for i in range(video.size(0)):
             v = self.transform(video[i])
             vd[i] = v.permute(1, 2, 0)
-            #plt.imshow(vd[i].squeeze().cpu().detach().numpy(), cmap=plt.cm.get_cmap('gray'))
-            #plt.savefig("ss"+str(i)+".png")
-            #a_ = video[i].numpy()
-            #im = Image.fromarray(a_).convert('RGB')#.resize((self.d_x, self.d_y))
-            #im = Image.fromarray(np.array(im)).convert('LA').resize((self.d_x, self.d_y+18))
-            #im = center_crop(im, (self.d_y, self.d_x)).resize((self.d_x, self.d_y))
-            #a_ = np.array(im)[:,:,0]
-            #vd[i,:,:] = torch.from_numpy(a_)
-
-#        if self.transform is not None:
-#            video = self.transform(video)
 
         return vd, audio, label

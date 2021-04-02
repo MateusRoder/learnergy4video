@@ -344,7 +344,7 @@ class SpecDBM(Model):
                         m2, p2, c2 = 0, 0, 0
 
                         for fr in range(1, frames):
-                            x[:, 0, :, :] += x[:, fr, :, :]
+                            x[:, 0, :, :] -= x[:, fr, :, :]
                         
                         x = x[:, 0, :, :]
                         x = x.view(x.size(0), self.models[0].n_visible).detach()
@@ -505,7 +505,7 @@ class SpecDBM(Model):
                 mse2, pl2 = 0, 0
 
                 for fr in range(1, frames):
-                    samples[:, 0, :, :] += samples[:, fr, :, :]
+                    samples[:, 0, :, :] -= samples[:, fr, :, :]
 
                 samples = samples[:, 0, :, :]
 
@@ -599,7 +599,7 @@ class SpecDBM(Model):
         frames = samples.size(1)
 
         for fr in range(1, frames):
-            samples[:, 0, :, :] += samples[:, fr, :, :]
+            samples[:, 0, :, :] -= samples[:, fr, :, :]
 
         samples = samples[:, 0, :, :]
 
@@ -636,7 +636,7 @@ class SpecDBM(Model):
         frames = samples.size(1)
 
         for fr in range(1, frames):
-            samples[:, 0, :, :] += samples[:, fr, :, :]
+            samples[:, 0, :, :] -= samples[:, fr, :, :]
 
         samples = samples[:, 0, :, :]
 

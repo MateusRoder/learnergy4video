@@ -39,7 +39,7 @@ class DBM(Model):
     """
 
     def __init__(self, model=['gaussian', 'sigmoid'], n_visible=(72, 96), n_hidden=(128,), steps=(1,),
-                 learning_rate=(0.1,), momentum=(0,), decay=(0,), temperature=(1,), use_gpu=True):
+                 learning_rate=(0.1,), momentum=(0,), decay=(0,), temperature=(1,), use_gpu=True, mult=False):
         """Initialization method.
         Args:
             model (list of str): Indicates which type of RBM should be used to compose the DBM.
@@ -51,12 +51,16 @@ class DBM(Model):
             decay (tuple): Weight decay used for penalization per layer.
             temperature (tuple): Temperature factor per layer.
             use_gpu (boolean): Whether GPU should be used or not.
+            mult (boolean): To employ multimodal imput.
         """
 
         logger.info('Overriding class: Model -> DBM.')
 
         # Override its parent class
         super(DBM, self).__init__(use_gpu=use_gpu)
+
+        # Multimodal input -> default False
+        self.mult = mult
 
         # Shape of visible input
         self.visible_shape = n_visible
@@ -96,7 +100,6 @@ class DBM(Model):
         # List of models (RBMs)
         self.models = []
 
-
         # For every possible layer
         for i in range(self.n_layers):
             # If it is the first layer
@@ -109,12 +112,9 @@ class DBM(Model):
                 # Gathers the number of input units as previous number of hidden units
                 n_input = self.n_hidden[i-1]
 
-                # After creating the first layer, we need to change the model's type to sigmoid
-                #model = 'sigmoid'
-
             # Creates an RBM
             m = MODELS[model[i]](n_input, self.n_hidden[i], self.steps[i],
-                              self.lr[i], self.momentum[i], self.decay[i], self.T[i], use_gpu)
+                              self.lr[i], self.momentum[i], self.decay[i], self.T[i], use_gpu, mult)
 
             # Appends the model to the list
             self.models.append(m)

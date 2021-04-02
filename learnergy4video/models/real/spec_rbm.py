@@ -38,7 +38,7 @@ class SpecRBM(GaussianRBM):
     """
 
     def __init__(self, n_visible=784, n_hidden=128, steps=1, learning_rate=0.1,
-                 momentum=0, decay=0, temperature=1, use_gpu=True):
+                 momentum=0, decay=0, temperature=1, use_gpu=True, mult=False):
         """Initialization method.
 
         Args:
@@ -54,6 +54,9 @@ class SpecRBM(GaussianRBM):
         """
 
         logger.info('Overriding class: GaussianRBM -> SpecRBM.')
+
+        # Flag to multimodal input
+        self.mult = mult
 
         # Amount of visible units
         self.n_visible = n_visible
@@ -110,7 +113,7 @@ class SpecRBM(GaussianRBM):
                 max_value = samples.max()
 
                 for fr in range(1, frames):
-                    samples[:, 0, :, :] += samples[:, fr, :, :]
+                    samples[:, 0, :, :] -= samples[:, fr, :, :]
 
                 samples[:, 0, :, :] /= (max_value*frames)
                 samples = samples[:, 0, :, :].reshape(
@@ -167,7 +170,7 @@ class SpecRBM(GaussianRBM):
                     w8 = self.W.cpu().detach().numpy()
                     img = _rasterize(w8.T, img_shape=(72, 96), tile_shape=(30, 30), tile_spacing=(1, 1))
                     im = Image.fromarray(img)
-                    im.save('w8_spec_ucf_.png')
+                    im.save('w8_spec_.png')
                 inner.update(1)
 
             # Normalizing the MSE and pseudo-likelihood with the number of batches
@@ -222,7 +225,7 @@ class SpecRBM(GaussianRBM):
                 x = x.cuda()
 
             for fr in range(1, frames):
-                x[:, 0, :, :] += x[:, fr, :, :]
+                x[:, 0, :, :] -= x[:, fr, :, :]
 
             x[:, 0, :, :] /= (max_value*frames)
             x = x[:, 0, :, :].reshape(len(x), x.size(2)*x.size(3))
@@ -277,7 +280,7 @@ class SpecRBM(GaussianRBM):
             x = x.cuda()
 
         for fr in range(1, frames):
-            x[:, 0, :, :] += x[:, fr, :, :]
+            x[:, 0, :, :] -= x[:, fr, :, :]
 
         x[:, 0, :, :] /= (max_value*frames)
         x = x[:, 0, :, :].reshape(len(x), x.size(2)*x.size(3))

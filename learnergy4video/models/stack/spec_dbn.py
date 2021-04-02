@@ -12,7 +12,7 @@ from learnergy4video.utils.collate import collate_fn
 from learnergy4video.core.dataset import Dataset
 from learnergy4video.core.model import Model
 from learnergy4video.models.binary import RBM
-from learnergy4video.models.real import GaussianRBM, SigmoidRBM, EDropoutRBM, EDropoutRBM_Inner
+from learnergy4video.models.real import GaussianRBM, SigmoidRBM, EDropoutRBM, EDropoutRBM_Inner, SpecRBM
 
 import os
 workers = os.cpu_count()
@@ -28,18 +28,19 @@ MODELS = {
     'gaussian': GaussianRBM,
     'sigmoid': SigmoidRBM,
     'edrop': EDropoutRBM,
-    'edrop_inner': EDropoutRBM_Inner
+    'edrop_inner': EDropoutRBM_Inner,
+    'spectral': SpecRBM
 }
 
 
-class DBN(Model):
-    """A DBN class provides the basic implementation for Deep Belief Networks.
+class SpecDBN(Model):
+    """A SDBN class provides the basic implementation for Deep Belief Networks.
     References:
         G. Hinton, S. Osindero, Y. Teh. A fast learning algorithm for deep belief nets.
         Neural computation (2006).
     """
 
-    def __init__(self, model=['gaussian', 'sigmoid'], n_visible=(72, 96), n_hidden=(128,), steps=(1,),
+    def __init__(self, model=['spectral', 'sigmoid'], n_visible=(72, 96), n_hidden=(128,), steps=(1,),
                  learning_rate=(0.1,), momentum=(0,), decay=(0,), temperature=(1,), use_gpu=True, mult=False):
         """Initialization method.
         Args:
@@ -55,12 +56,12 @@ class DBN(Model):
             mult (boolean): To employ multimodal imput.
         """
 
-        logger.info('Overriding class: Model -> DBN.')
+        logger.info('Overriding class: Model -> SDBN.')
 
         # Override its parent class
-        super(DBN, self).__init__(use_gpu=use_gpu)
+        super(SpecDBN, self).__init__(use_gpu=use_gpu)
 
-        # Multimodal input -> default False
+        # Flag to multimodal input
         self.mult = mult
 
         # Shape of visible input
@@ -106,6 +107,9 @@ class DBN(Model):
                 # Gathers the number of input units as number of visible units
                 n_input = self.n_visible
 
+                # Forcing the Spectral input
+                model[i] = 'spectral'
+
             # If it is not the first layer
             else:
                 # Gathers the number of input units as previous number of hidden units
@@ -116,7 +120,7 @@ class DBN(Model):
 
             # Creates an RBM
             m = MODELS[model[i]](n_input, self.n_hidden[i], self.steps[i],
-                              self.lr[i], self.momentum[i], self.decay[i], self.T[i], use_gpu, mult)
+                              self.lr[i], self.momentum[i], self.decay[i], self.T[i], use_gpu)
 
             # Appends the model to the list
             self.models.append(m)
@@ -337,26 +341,28 @@ class DBN(Model):
 
                         m2, p2, c2 = 0, 0, 0
 
-                        for fr in range(frames):
-                            x_ = x[:, fr, :, :]
-                            x_ = x_.view(x.size(0), self.models[0].n_visible).detach()
-                            x_ = (x_ - torch.mean(x_, 0, True))/(torch.std(x_, 0, True) + 10e-6)
+                        for fr in range(1, frames):
+                            x[:, 0, :, :] -= x[:, fr, :, :]
+
+                        x = x[:, 0, :, :]
+                        x = x.view(x.size(0), self.models[0].n_visible).detach()
+                        x = (x - torch.mean(x, 0, True))/(torch.std(x, 0, True) + 10e-6)
                         
-                            for j in range(i): # iterate over trained models
-                                x_ = self.models[j].forward(x_)
+                        for j in range(i): # iterate over trained models
+                            x, _ = self.models[j].hidden_sampling(x)
+                            #x_ = self.models[j].forward(x_)
 
-                            model_mse, model_pl, ct = model.fit(x_, len(x_), 1, frames)
+                        model_mse, model_pl, ct = model.fit(x, len(x), 1, frames)
 
-                            # Appending the partial metrics
-                            m2 += model_mse
-                            p2 += model_pl
-                            c2 += ct
-                        m2/=frames
-                        p2/=frames
-                        c2/=frames
+                        # Appending the partial metrics
+                        m2 += model_mse
+                        p2 += model_pl
+                        c2 += ct
+
                         mse2+=m2
                         pl2+=p2
                         cst2+=c2
+
                         if ii % 100 == 99:
                             print('MSE:', (mse2/ii).item(), 'Cost:', (cst2/ii).item())
                         inner_trans.update(1)
@@ -376,21 +382,35 @@ class DBN(Model):
 
         return mse, pl
 
-    def forward(self, x):
+    def forward(self, samples):
         """Performs a forward pass over the data.
         Args:
-            x (torch.Tensor): An input tensor for computing the forward pass.
+            samples (torch.Tensor): An input tensor for computing the forward pass.
         Returns:
             A tensor containing the DBN's outputs.
        
         """
 
+        frames = samples.size(1)
+
+        for fr in range(1, frames):
+            samples[:, 0, :, :] -= samples[:, fr, :, :]
+
+        samples = samples[:, 0, :, :]
+
+        # Flattening the samples' batch                    
+        samples = samples.view(samples.size(0), self.n_visible)
+
+        # Normalizing the samples' batch
+        samples = ((samples - torch.mean(samples, 0, True)) / (torch.std(samples, 0, True) + 10e-6)).detach()
+
+
         # For every possible model
         for model in self.models:
             # Calculates the outputs of current model
-            x, _ = model.hidden_sampling(x)
+            samples, _ = model.hidden_sampling(samples)
 
-        return x.detach()
+        return samples.detach()
 
     def reconstruct(self, x):
         """Performs a reconstruction pass over the data.

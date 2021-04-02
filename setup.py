@@ -4,7 +4,7 @@ with open('README.md', 'r') as f:
     long_description = f.read()
 
 setup(name='learnergy4video4video',
-      version='1.0.8',
+      version='1.1',
       description='learnergy4video for video data',
       long_description=long_description,
       long_description_content_type='text/markdown',
@@ -17,7 +17,7 @@ setup(name='learnergy4video4video',
                         'Pillow>=7.1.2',
                         'pylint>=2.5.2',
                         'pytest>=5.4.2',
-                        'torch>=1.5.0',
+                        'torch>=1.7.0',
                         'torchvision>=0.6.0',
                         'tqdm>=4.46.0'
                        ],

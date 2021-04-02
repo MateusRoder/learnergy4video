@@ -25,7 +25,7 @@ class DropoutRBM(GaussianRBM):
     """
 
     def __init__(self, n_visible=128, n_hidden=128, steps=1, learning_rate=0.1,
-                 momentum=0, decay=0, temperature=1, dropout=0.5, use_gpu=False):
+                 momentum=0, decay=0, temperature=1, dropout=0.5, use_gpu=False, mult=False):
         """Initialization method.
 
         Args:
@@ -45,7 +45,10 @@ class DropoutRBM(GaussianRBM):
 
         # Override its parent class
         super(DropoutRBM, self).__init__(n_visible, n_hidden, steps, learning_rate,
-                                         momentum, decay, temperature, use_gpu)
+                                         momentum, decay, temperature, use_gpu, mult)
+
+        # Multimodal input -> default False
+        self.mult = mult
 
         # Intensity of dropout
         self.p = dropout

@@ -3,16 +3,18 @@ import torch
 import tqdm
 
 from torch.utils.data import DataLoader
+from torch.fft import fftn, ifftn
 
 import learnergy4video.utils.constants as c
 import learnergy4video.utils.exception as e
 import learnergy4video.utils.logging as l
 
+from learnergy4video.utils.fft_utils import fftshift, ifftshift
 from learnergy4video.utils.collate import collate_fn
 from learnergy4video.core.dataset import Dataset
 from learnergy4video.core.model import Model
 from learnergy4video.models.binary import RBM
-from learnergy4video.models.real import GaussianRBM, SigmoidRBM, EDropoutRBM, EDropoutRBM_Inner
+from learnergy4video.models.real import GaussianRBM, SigmoidRBM, EDropoutRBM, EDropoutRBM_Inner, FRRBM
 
 import os
 workers = os.cpu_count()
@@ -28,19 +30,20 @@ MODELS = {
     'gaussian': GaussianRBM,
     'sigmoid': SigmoidRBM,
     'edrop': EDropoutRBM,
-    'edrop_inner': EDropoutRBM_Inner
+    'edrop_inner': EDropoutRBM_Inner,
+    'fourier': FRRBM
+    #'spectral': SpecRBM
 }
 
 
-class DBN(Model):
-    """A DBN class provides the basic implementation for Deep Belief Networks.
+class FRDBN(Model):
+    """A FRDBN class provides the basic implementation for Fourier-based Deep Belief Networks.
     References:
-        G. Hinton, S. Osindero, Y. Teh. A fast learning algorithm for deep belief nets.
-        Neural computation (2006).
+        Roder (2021).
     """
 
-    def __init__(self, model=['gaussian', 'sigmoid'], n_visible=(72, 96), n_hidden=(128,), steps=(1,),
-                 learning_rate=(0.1,), momentum=(0,), decay=(0,), temperature=(1,), use_gpu=True, mult=False):
+    def __init__(self, model=['fourier', 'sigmoid'], n_visible=(72, 96), n_hidden=(128,), steps=(1,),
+                 learning_rate=(0.1,), momentum=(0,), decay=(0,), temperature=(1,), use_gpu=True, mult=True, seed=0):
         """Initialization method.
         Args:
             model (list of str): Indicates which type of RBM should be used to compose the DBN.
@@ -55,12 +58,14 @@ class DBN(Model):
             mult (boolean): To employ multimodal imput.
         """
 
-        logger.info('Overriding class: Model -> DBN.')
+        logger.info('Overriding class: Model -> FRDBN.')
 
         # Override its parent class
-        super(DBN, self).__init__(use_gpu=use_gpu)
+        super(FRDBN, self).__init__(use_gpu=use_gpu)
 
-        # Multimodal input -> default False
+        self.seed=seed
+
+        # Flag to multimodal input
         self.mult = mult
 
         # Shape of visible input
@@ -105,6 +110,9 @@ class DBN(Model):
             if i == 0:
                 # Gathers the number of input units as number of visible units
                 n_input = self.n_visible
+
+                # Forcing the Spectral input
+                model[i] = 'fourier'
 
             # If it is not the first layer
             else:
@@ -306,9 +314,22 @@ class DBN(Model):
         # Initializing MSE and pseudo-likelihood as lists
         mse, pl, custo = [], [], []
 
+        nvis = self.models[0].n_visible
+
         # For every possible model (-RBM)
         for i, model in enumerate(self.models):
             logger.info(f'Fitting layer {i+1}/{self.n_layers} ...')
+
+            #try:
+            #    if i == 0:
+            #        m = torch.load("HXXspec_rbm"+str(self.seed)+".pth")
+            #        m.cuda()
+            #        m.eval()
+            #        self.models[i]=m.models[i]
+            #        print("Model loaded")
+            #        continue
+            #except:
+            #    print("Not laoded")
 
             if i == 0:
                 # Fits the RBM
@@ -331,32 +352,45 @@ class DBN(Model):
                     for ii, batch in enumerate(batches):
                         x, y = batch
 
+                        m2, p2, c2 = 0, 0, 0
+
                         # Checking whether GPU is avaliable and if it should be used
                         if self.device == 'cuda':
                             x = x.cuda()
 
-                        m2, p2, c2 = 0, 0, 0
-
                         for fr in range(frames):
-                            x_ = x[:, fr, :, :]
-                            x_ = x_.view(x.size(0), self.models[0].n_visible).detach()
-                            x_ = (x_ - torch.mean(x_, 0, True))/(torch.std(x_, 0, True) + 10e-6)
-                        
-                            for j in range(i): # iterate over trained models
-                                x_ = self.models[j].forward(x_)
 
-                            model_mse, model_pl, ct = model.fit(x_, len(x_), 1, frames)
+                            sps = x[:, fr, :, :].squeeze()
+
+                            # Creating the Fourier Spectrum
+                            spec_data = fftshift(fftn(sps))[:,:,:,0]
+                            spec_data = torch.abs(spec_data.squeeze())
+                            spec_data.detach()
+                            
+                            # Flattening the samples' batch
+                            sps = sps.view(sps.size(0), int(nvis//2))
+                            spec_data = spec_data.view(spec_data.size(0), int(nvis//2))
+
+                            # Concatenating the inputs
+                            sps = torch.cat((sps, spec_data), dim=-1)
+                        
+                            # Normalizing the samples' batch
+                            sps = ((sps - torch.mean(sps, 0, True)) / (torch.std(sps, 0, True) + c.EPSILON)).detach()
+
+                            for j in range(i): # iterate over trained models
+                                sps, _ = self.models[j].hidden_sampling(sps)
+                                                        
+                            model_mse, model_pl, ct = model.fit(sps, len(sps), 1, frames)
 
                             # Appending the partial metrics
                             m2 += model_mse
                             p2 += model_pl
-                            c2 += ct
-                        m2/=frames
-                        p2/=frames
-                        c2/=frames
-                        mse2+=m2
-                        pl2+=p2
-                        cst2+=c2
+                            c2 += ct                            
+
+                        mse2+=m2/frames
+                        pl2+=p2/frames
+                        cst2+=c2/frames
+
                         if ii % 100 == 99:
                             print('MSE:', (mse2/ii).item(), 'Cost:', (cst2/ii).item())
                         inner_trans.update(1)
@@ -385,12 +419,43 @@ class DBN(Model):
        
         """
 
-        # For every possible model
-        for model in self.models:
-            # Calculates the outputs of current model
-            x, _ = model.hidden_sampling(x)
+        frames = x.size(1) #frames            
+        dy, dx = x.size(2), x.size(3)
+        ds = torch.zeros((x.size(0), frames, self.n_hidden[self.n_layers-1]))
 
-        return x.detach()
+        # Checking whether GPU is avaliable and if it should be used
+        if self.device == 'cuda':
+            # Applies the GPU usage to the data            
+            x = x.cuda()
+            ds = ds.cuda()      
+
+        for fr in range(frames):
+            sps = x[:, fr, :, :].squeeze()
+
+            # Creating the Fourier Spectrum
+            spec_data = fftshift(fftn(sps))[:,:,:,0]
+            spec_data = torch.abs(spec_data.squeeze())
+            spec_data.detach()
+            
+            # Flattening the samples' batch
+            sps = sps.view(sps.size(0), int(self.n_visible))
+            spec_data = spec_data.view(spec_data.size(0), int(self.n_visible))
+        
+            # Normalizing the samples' batch
+            sps = ((sps - torch.mean(sps, 0, True)) / (torch.std(sps, 0, True) + c.EPSILON)).detach()
+            spec_data = ((spec_data - torch.mean(spec_data, 0, True)) / (torch.std(spec_data, 0, True) + c.EPSILON)).detach()
+            
+            # Concatenating the inputs
+            sps = torch.cat((sps, spec_data), dim=-1)
+
+            # For every possible model
+            for model in self.models:
+                # Calculates the outputs of current model
+                sps, _ = model.hidden_sampling(sps)
+            
+            ds[:, fr, :] = sps
+
+        return ds.detach()
 
     def reconstruct(self, x):
         """Performs a reconstruction pass over the data.

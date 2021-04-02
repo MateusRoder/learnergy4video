@@ -38,7 +38,7 @@ class GaussianRBM(RBM):
     """
 
     def __init__(self, n_visible=784, n_hidden=128, steps=1, learning_rate=0.1,
-                 momentum=0, decay=0, temperature=1, use_gpu=True):
+                 momentum=0, decay=0, temperature=1, use_gpu=True, mult=False):
         """Initialization method.
 
         Args:
@@ -50,6 +50,7 @@ class GaussianRBM(RBM):
             decay (float): Weight decay used for penalization.
             temperature (float): Temperature factor.
             use_gpu (boolean): Whether GPU should be used or not.
+            mult (boolean): To employ multimodal imput.
 
         """
 
@@ -57,7 +58,10 @@ class GaussianRBM(RBM):
 
         # Override its parent class
         super(GaussianRBM, self).__init__(n_visible, n_hidden, steps, learning_rate,
-                                          momentum, decay, temperature, use_gpu)
+                                          momentum, decay, temperature, use_gpu, mult)
+
+        # Multimodal input -> default False
+        self.mult = mult
 
         logger.info('Class overrided.')
 
@@ -74,12 +78,6 @@ class GaussianRBM(RBM):
 
         # Calculate samples' activations
         activations = F.linear(samples, self.W.t(), self.b)
-        nan_mask = torch.isnan(samples)
-        if nan_mask.any():
-            print("Samples", samples)
-            #for i in range(samples.size(0)):
-            #    print(samples[i,:])
-            raise RuntimeError(f'Indexes: {nan_mask.nonzero()}')
 
         # Creating a Softplus function for numerical stability
         s = nn.Softplus()

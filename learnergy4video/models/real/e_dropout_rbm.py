@@ -31,14 +31,14 @@ class EDropoutRBM(GaussianRBM):
     Bernoulli-Bernoulli Restricted Boltzmann Machines along with a Energy-based Dropout regularization.
 
     References:
-        M. Roder, G. H. de Rosa, A. L. D. Rossi, J. P. Papa.
+        M. Roder, G. H. de Rosa, A. L. D. Rossi, VHC, J. P. Papa.
         Energy-based Dropout in Restricted Boltzmann Machines: Why Do Not Go Random.
         IEEE TETCI (2020).
 
     """
 
     def __init__(self, n_visible=128, n_hidden=128, steps=1, learning_rate=0.1,
-                 momentum=0, decay=0, temperature=1, use_gpu=False):
+                 momentum=0, decay=0, temperature=1, use_gpu=False, mult=False):
         """Initialization method.
 
         Args:
@@ -58,6 +58,9 @@ class EDropoutRBM(GaussianRBM):
         # Override its parent class
         super(EDropoutRBM, self).__init__(n_visible, n_hidden, steps, learning_rate,
                                           momentum, decay, temperature, use_gpu)
+
+        # Multimodal input -> default False
+        self.mult = mult
 
         # Initializes the Energy-based Dropout mask
         self.M = torch.Tensor()
