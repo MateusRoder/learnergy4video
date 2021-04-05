@@ -110,12 +110,12 @@ class SpecRBM(GaussianRBM):
 
                 #dy = samples.size(2) #72
                 #dx = samples.size(3) #96 x(72, 96)                
-                max_value = samples.max()
+                #max_value = samples.max()
 
                 for fr in range(1, frames):
                     samples[:, 0, :, :] -= samples[:, fr, :, :]
 
-                samples[:, 0, :, :] /= (max_value*frames)
+                #samples[:, 0, :, :] /= (max_value*frames)
                 samples = samples[:, 0, :, :].reshape(
                     len(samples), samples.size(2)*samples.size(3))
 
@@ -217,7 +217,7 @@ class SpecRBM(GaussianRBM):
         for _, batch in enumerate(batches):
             x, _ = batch
             frames = x.size(1) #frames            
-            max_value = x.max()
+            #max_value = x.max()
 
             # Checking whether GPU is avaliable and if it should be used
             if self.device == 'cuda':
@@ -227,7 +227,7 @@ class SpecRBM(GaussianRBM):
             for fr in range(1, frames):
                 x[:, 0, :, :] -= x[:, fr, :, :]
 
-            x[:, 0, :, :] /= (max_value*frames)
+            #x[:, 0, :, :] /= (max_value*frames)
             x = x[:, 0, :, :].reshape(len(x), x.size(2)*x.size(3))
             x = ((x-torch.mean(x, 0, True))/(torch.std(x, 0, True) + 1e-6)).detach()
             
@@ -272,7 +272,7 @@ class SpecRBM(GaussianRBM):
 
         #self.p = 0
         frames = x.size(1) #frames            
-        max_value = x.max()
+        #max_value = x.max()
 
         # Checking whether GPU is avaliable and if it should be used
         if self.device == 'cuda':
@@ -282,7 +282,7 @@ class SpecRBM(GaussianRBM):
         for fr in range(1, frames):
             x[:, 0, :, :] -= x[:, fr, :, :]
 
-        x[:, 0, :, :] /= (max_value*frames)
+        #x[:, 0, :, :] /= (max_value*frames)
         x = x[:, 0, :, :].reshape(len(x), x.size(2)*x.size(3))
         x = ((x-torch.mean(x, 0, True))/(torch.std(x, 0, True) + 1e-6)).detach()
 
