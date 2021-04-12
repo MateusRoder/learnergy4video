@@ -38,7 +38,7 @@ class GaussianRBM(RBM):
     """
 
     def __init__(self, n_visible=784, n_hidden=128, steps=1, learning_rate=0.1,
-                 momentum=0, decay=0, temperature=1, use_gpu=True, mult=False):
+                 momentum=0, decay=0, temperature=1, use_gpu=True):
         """Initialization method.
 
         Args:
@@ -50,18 +50,13 @@ class GaussianRBM(RBM):
             decay (float): Weight decay used for penalization.
             temperature (float): Temperature factor.
             use_gpu (boolean): Whether GPU should be used or not.
-            mult (boolean): To employ multimodal imput.
-
         """
 
         logger.info('Overriding class: RBM -> GaussianRBM.')
 
         # Override its parent class
         super(GaussianRBM, self).__init__(n_visible, n_hidden, steps, learning_rate,
-                                          momentum, decay, temperature, use_gpu, mult)
-
-        # Multimodal input -> default False
-        self.mult = mult
+                                          momentum, decay, temperature, use_gpu)
 
         logger.info('Class overrided.')
 
@@ -304,6 +299,43 @@ class GaussianRBM(RBM):
         logger.info(f'MSE: {mse}')
 
         return mse, samples, visible_probs
+
+    def forward(self, x):
+        """Performs a forward pass over the data.
+        Args:
+            x (torch.Tensor): An input tensor for computing the forward pass.
+        Returns:
+            A tensor containing the DBN's outputs.
+       
+        """
+
+        #self.p = 0
+        frames = x.size(1) #frames            
+        dy, dx = x.size(2), x.size(3)
+        ds = torch.zeros((x.size(0), frames, self.n_hidden))
+
+        # Checking whether GPU is avaliable and if it should be used
+        if self.device == 'cuda':
+            # Applies the GPU usage to the data            
+            x = x.cuda()
+            ds = ds.cuda()
+
+        for fr in range(frames):
+            sps = x[:, fr, :, :].squeeze()
+
+            # Flattening the samples' batch
+            sps = sps.reshape(sps.size(0), self.n_visible)
+        
+            # Normalizing the samples' batch
+            sps = ((sps - torch.mean(sps, 0, True)) / (torch.std(sps, 0, True) + c.EPSILON)).detach()
+
+            sps, _ = self.hidden_sampling(sps)
+            ds[:, fr, :] = sps.reshape((sps.size(0), self.n_hidden))
+
+        x.detach()
+        sps.detach()
+
+        return ds.detach()        
 
 
 class VarianceGaussianRBM(RBM):

@@ -27,7 +27,7 @@ class SigmoidRBM(RBM):
     """
 
     def __init__(self, n_visible=128, n_hidden=128, steps=1, learning_rate=0.1,
-                 momentum=0, decay=0, temperature=1, use_gpu=False, mult=False):
+                 momentum=0, decay=0, temperature=1, use_gpu=False):
         """Initialization method.
 
         Args:
@@ -47,8 +47,6 @@ class SigmoidRBM(RBM):
         # Override its parent class
         super(SigmoidRBM, self).__init__(n_visible, n_hidden, steps, learning_rate,
                                          momentum, decay, temperature, use_gpu)
-
-        self.mult=mult
 
         logger.info('Class overrided.')
 

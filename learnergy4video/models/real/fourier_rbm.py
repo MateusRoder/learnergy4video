@@ -30,7 +30,7 @@ logger = l.get_logger(__name__)
 
 
 class FRRBM(GaussianRBM):
-    """A Multimodal Fourier-RBM class provides the basic implementation for Gaussian-Bernoulli Restricted Boltzmann Machines (with standardization).
+    """A Fourier-RBM class provides the basic implementation for Gaussian-Bernoulli Restricted Boltzmann Machines (with standardization).
 
     Note that this classes requires standardization of data as it uses variance equals to one throughout its learning procedure.
     This is a trick to ease the calculations of the hidden and visible layer samplings, as well as the cost function.
@@ -40,7 +40,7 @@ class FRRBM(GaussianRBM):
     """
 
     def __init__(self, n_visible=784, n_hidden=128, steps=1, learning_rate=0.1,
-                 momentum=0, decay=0, temperature=1, use_gpu=True, mult=True):
+                 momentum=0, decay=0, temperature=1, use_gpu=True):
         """Initialization method.
 
         Args:
@@ -52,142 +52,19 @@ class FRRBM(GaussianRBM):
             decay (float): Weight decay used for penalization.
             temperature (float): Temperature factor.
             use_gpu (boolean): Whether GPU should be used or not.
-            mult (boolean): To employ multimodal imput.
 
         """
 
         logger.info('Overriding class: GaussianRBM -> FRRBM.')
 
-        # Amount of visible units (multimodal requires 2x the input size)
-        self.n_visible = int(n_visible*2)
-
         # Override its parent class
-        super(FRRBM, self).__init__(self.n_visible, n_hidden, steps, learning_rate,
-                                          momentum, decay, temperature, use_gpu, mult)
-
-        # Multimodal input (2 w8 matrices) -> Default = False
-        self.mult = mult
+        super(FRRBM, self).__init__(n_visible, n_hidden, steps, learning_rate,
+                                          momentum, decay, temperature, use_gpu)
 
         # Drop probability
         self.p = 0.0
 
         logger.info('Class overrided.')        
-
-    def visible_sampling(self, h, scale=False):
-        """Performs the visible layer sampling, i.e., P(v|h).
-
-        Args:
-            h (torch.Tensor): A tensor incoming from the hidden layer.
-            scale (bool): A boolean to decide whether temperature should be used or not.
-
-        Returns:
-            The probabilities and states of the visible layer sampling.
-
-        """
-
-        # Calculating neurons' activations
-        #activations = F.linear(h, self.c2*self.W, self.a)
-        #activations1 = F.linear(h[:, :int(self.n_hidden/2)], self.c2*self.W[:int(self.n_visible/2), :int(self.n_hidden/2)],
-        activations1 = F.linear(h[:, :int(self.n_hidden/2)], self.c2*self.W, self.a)
-        activations2 = F.linear(h[:, int(self.n_hidden/2):], self.c2*self.W2, self.a2)
-        activations = torch.cat((activations1, activations2), dim=-1)
-
-        # If scaling is true
-        if scale:
-            # Scale with temperature
-            activations = torch.div(activations, self.T)
-
-        # If scaling is false
-        else:
-            # Gathers the states as usual
-            states = activations
-
-        proba = torch.sigmoid(activations)
-
-        return proba, activations
-
-    def hidden_sampling(self, v, scale=False):
-        """Performs the hidden layer sampling, i.e., P(h|v).
-
-        Args:
-            v (torch.Tensor): A tensor incoming from the visible layer.
-            scale (bool): A boolean to decide whether temperature should be used or not.
-
-        Returns:
-            The probabilities and states of the hidden layer sampling.
-
-        """
-        #print("tipo", self.W2.size(), self.b.size())
-        # Calculating neurons' activations
-        #activations1 = F.linear(v[:, :int(self.n_visible/2)], self.c1*self.W[:int(self.n_visible/2), :int(self.n_hidden/2)].t(), 
-        activations1 = F.linear(v[:, :int(self.n_visible/2)], self.c1*self.W.t(), self.b)
-        #self.b[:int(self.n_hidden/2)])
-        
-        #activations2 = F.linear(v[:, int(self.n_visible/2):], self.c1*self.W[int(self.n_visible/2):, int(self.n_hidden/2):].t(), 
-        activations2 = F.linear(v[:, int(self.n_visible/2):], self.c1*self.W2.t(), self.b2)
-
-        activations = torch.cat((activations1, activations2), dim=-1)
-
-        # If scaling is true
-        if scale:
-            # Calculate probabilities with temperature
-            probs = torch.sigmoid(torch.div(activations, self.T))
-
-        # If scaling is false
-        else:
-            # Calculate probabilities as usual
-            probs = torch.sigmoid(activations)
-
-        # Sampling current states
-        states = torch.bernoulli(probs)
-
-        return probs, states
-
-    def energy(self, v):
-        """Calculates and frees the system's energy.
-
-        Args:
-            v (torch.Tensor): Samples to be energy-freed.
-
-        Returns:
-            The system's energy based on input samples.
-
-        """
-
-        # Calculate samples' activations
-        activations1 = F.linear(v[:, :int(self.n_visible/2)], 
-        self.c1*self.W.t(), self.b)
-        #self.c1*self.W[:int(self.n_visible/2), :int(self.n_hidden/2)].t(), 
-        #self.b[:int(self.n_hidden/2)])
-
-        activations2 = F.linear(v[:, int(self.n_visible/2):], 
-        self.c1*self.W2.t(), self.b2)
-        #self.c1*self.W[int(self.n_visible/2):, int(self.n_hidden/2):].t(), 
-        #self.b[int(self.n_hidden/2):])
-
-        activations = torch.cat((activations1, activations2), dim=-1)
-
-        # Creating a Softplus function for numerical stability
-        s = nn.Softplus()
-
-        # Calculate the hidden terms
-        h = torch.sum(s(activations), dim=1)
-        #h2 = torch.sum(s(activations2), dim=1)
-
-        # Calculate the visible terms
-        vv = torch.sum(0.5*((v[:, :int(self.n_visible/2)]-self.a)**2), dim=1)
-        vv += torch.sum(0.5*((v[:, int(self.n_visible/2):]-self.a2)**2), dim=1)
-        #vv1 = torch.sum(0.5*((v[:, :int(self.n_visible/2)]-
-        #self.a[:int(self.n_visible/2)])**2), dim=1)
-        #vv2 = torch.sum(0.5*((v[:, int(self.n_visible/2):]-
-        #self.a[int(self.n_visible/2):])**2), dim=1)
-
-        # Finally, gathers the system's energy
-        energy = vv - h
-        #energy1 = vv1 - h1
-        #energy2 = vv2 - h2
-
-        return energy
 
     
     def fit(self, dataset, batch_size=128, epochs=10, frames=6):
@@ -209,8 +86,6 @@ class FRRBM(GaussianRBM):
         # For every epoch
         for e in range(epochs):
             logger.info(f'Epoch {e+1}/{epochs}')
-            #if e > 1:
-            #    self.momentum = 0.9
 
             # Calculating the time of the epoch's starting
             start = time.time()
@@ -238,27 +113,20 @@ class FRRBM(GaussianRBM):
                     sps = samples[:, fr, :, :].squeeze()
 
                     # Creating the Fourier Spectrum
-                    spec_data = fftshift(fftn(sps))[:,:,:,0]
-                    #spec_data = 20*torch.log(torch.abs(spec_data.squeeze())+c.EPSILON)
+                    spec_data = fftshift(fftn(sps))[:,:,:,0]                    
                     spec_data = torch.abs(spec_data.squeeze())
-                    spec_data.detach()
                     
                     # Flattening the samples' batch
-                    sps = sps.view(sps.size(0), int(self.n_visible//2))
-                    spec_data = spec_data.view(spec_data.size(0), int(self.n_visible//2))
-
-                    # Concatenating the inputs
-                    sps = torch.cat((sps, spec_data), dim=-1)
+                    spec_data = spec_data.view(spec_data.size(0), self.n_visible)
                 
                     # Normalizing the samples' batch
-                    sps = ((sps - torch.mean(sps, 0, True)) / (torch.std(sps, 0, True) + c.EPSILON)).detach()
-                    #spec_data = ((spec_data - torch.mean(spec_data, 0, True)) / (torch.std(spec_data, 0, True) + c.EPSILON)).detach()                    
-               
+                    spec_data = ((spec_data - torch.mean(spec_data, 0, True)) / (torch.std(spec_data, 0, True) + c.EPSILON)).detach()
+
                     # Performs the Gibbs sampling procedure
-                    _, _, _, _, visible_states = self.gibbs_sampling(sps)
+                    _, _, _, _, visible_states = self.gibbs_sampling(spec_data)
 
                     # Calculates the loss for further gradients' computation
-                    cost += torch.mean(self.energy(sps)) - \
+                    cost += torch.mean(self.energy(spec_data)) - \
                             torch.mean(self.energy(visible_states))
 
                     # Detaching the visible states from GPU for further computation
@@ -269,10 +137,10 @@ class FRRBM(GaussianRBM):
 
                     # Calculating current's batch MSE
                     batch_mse = torch.div(
-                        torch.sum(torch.pow(sps - visible_states, 2)), batch_size2).detach()
+                        torch.sum(torch.pow(spec_data - visible_states, 2)), batch_size2).detach()
 
                     # Calculating the current's batch logarithm pseudo-likelihood
-                    batch_pl = self.pseudo_likelihood(sps).detach()
+                    batch_pl = self.pseudo_likelihood(spec_data).detach()
 
                     # Summing up to epochs' MSE and pseudo-likelihood
                     mse2 += batch_mse
@@ -289,7 +157,6 @@ class FRRBM(GaussianRBM):
                 mse2 /= frames
                 pl2 /= frames
                 cst2 /= frames
-                #print('MSE:', (mse2).item(), 'Cost:', (cst2).item())
 
                 mse += mse2
                 pl  += pl2
@@ -297,25 +164,12 @@ class FRRBM(GaussianRBM):
 
                 if ii % 100 == 99:
                     print('MSE:', (mse/ii).item(), 'Cost:', (cst/ii).item())
-                    #w8 = self.W.cpu().detach().numpy()[1:, :]
                     w8 = self.W.cpu().detach().numpy()
-                    #w8 = w8[:int(self.n_visible//2), :]
-                    img = _rasterize(w8.T, img_shape=(72, 96), tile_shape=(30, 30), tile_spacing=(1, 1))
-                    im = Image.fromarray(img)
-                    im.save('w8_spec_ucf_.png')
-
-                    w8 = self.W2.cpu().detach().numpy()
-                    #w8 = w8[int(self.n_visible//2):, :]
                     img = _rasterize(w8.T, img_shape=(72, 96), tile_shape=(30, 30), tile_spacing=(1, 1))
                     im = Image.fromarray(img)
                     im.save('w8_spec.png')
 
-                    x = visible_states[:100,:int(self.n_visible/2)].cpu().detach().reshape((100, 6912)).numpy()
-                    x = _rasterize(x, img_shape=(72, 96), tile_shape=(10, 10), tile_spacing=(1, 1))
-                    im = Image.fromarray(x)
-                    im = im.convert("LA")
-                    im.save('sample.png')
-                    x = visible_states[:100,int(self.n_visible/2):].cpu().detach().reshape((100, 6912)).numpy()
+                    x = visible_states[:100].cpu().detach().reshape((100, 6912)).numpy()
                     x = _rasterize(x, img_shape=(72, 96), tile_shape=(10, 10), tile_spacing=(1, 1))
                     im = Image.fromarray(x)
                     im = im.convert("LA")
@@ -374,27 +228,22 @@ class FRRBM(GaussianRBM):
                 x = x.cuda()
                 reconstructed = reconstructed.cuda()                
 
-            for fr in range(1, frames):
+            for fr in range(frames):
                 sps = x[:, fr, :, :].squeeze()
 
                 # Creating the Fourier Spectrum
                 spec_data = fftshift(fftn(sps))[:,:,:,0]
-                #spec_data = 20*torch.log(torch.abs(spec_data.squeeze())+c.EPSILON)
                 spec_data = torch.abs(spec_data.squeeze())
                 spec_data.detach()
                 
                 # Flattening the samples' batch
-                sps = sps.view(sps.size(0), int(self.n_visible//2))
-                spec_data = spec_data.view(spec_data.size(0), int(self.n_visible//2))
+                spec_data = spec_data.view(spec_data.size(0),self.n_visible)
 
-                # Concatenating the inputs
-                sps = torch.cat((sps, spec_data), dim=-1)
-            
                 # Normalizing the samples' batch
-                sps = ((sps - torch.mean(sps, 0, True)) / (torch.std(sps, 0, True) + c.EPSILON)).detach()
+                spec_data = ((spec_data - torch.mean(spec_data, 0, True)) / (torch.std(spec_data, 0, True) + c.EPSILON)).detach()
             
                 # Performs the Gibbs sampling procedure
-                _, _, _, _, visible_states = self.gibbs_sampling(sps)
+                _, _, _, _, visible_states = self.gibbs_sampling(spec_data)
 
                 visible_states = visible_states.detach()
                 
@@ -403,7 +252,7 @@ class FRRBM(GaussianRBM):
 
             # Calculating current's batch reconstruction MSE
             batch_mse = torch.div(
-                torch.sum(torch.pow(x - visible_states, 2)), bs).detach()
+                torch.sum(torch.pow(x.reshape((len(x), frames, dy*dx)) - visible_states, 2)), bs).detach()
 
             # Summing up the reconstruction's MSE
             mse += batch_mse
@@ -413,7 +262,6 @@ class FRRBM(GaussianRBM):
 
         # Normalizing the MSE with the number of batches
         mse /= len(batches)
-        #print("samples", len(reconstructed))
         logger.info(f'MSE: {mse}')
 
         return mse, x, reconstructed
@@ -444,21 +292,15 @@ class FRRBM(GaussianRBM):
             # Creating the Fourier Spectrum
             spec_data = fftshift(fftn(sps))[:,:,:,0]
             spec_data = torch.abs(spec_data.squeeze())
-            spec_data.detach()
             
             # Flattening the samples' batch
-            sps = sps.view(sps.size(0), int(self.n_visible//2))
-            spec_data = spec_data.view(spec_data.size(0), int(self.n_visible//2))
+            spec_data = spec_data.reshape(spec_data.size(0), self.n_visible)
         
-            # Concatenating the inputs
-            sps = torch.cat((sps, spec_data), dim=-1)
-
             # Normalizing the samples' batch
-            sps = ((sps - torch.mean(sps, 0, True)) / (torch.std(sps, 0, True) + c.EPSILON)).detach()
-            #spec_data = ((spec_data - torch.mean(spec_data, 0, True)) / (torch.std(spec_data, 0, True) + c.EPSILON)).detach()
+            spec_data = ((spec_data - torch.mean(spec_data, 0, True)) / (torch.std(spec_data, 0, True) + c.EPSILON)).detach()
 
-            sps, _ = self.hidden_sampling(sps)
-            ds[:, fr, :] = sps.reshape((sps.size(0), 1, dy*dx))
+            spec_data, _ = self.hidden_sampling(spec_data)
+            ds[:, fr, :] = spec_data.reshape((spec_data.size(0), self.n_hidden))
 
         x.detach()
         sps.detach()

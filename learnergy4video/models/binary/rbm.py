@@ -34,7 +34,7 @@ class RBM(Model):
     """
 
     def __init__(self, n_visible=128, n_hidden=128, steps=1,
-                 learning_rate=0.1, momentum=0, decay=0, temperature=1, use_gpu=False, mult=False):
+                 learning_rate=0.1, momentum=0, decay=0, temperature=1, use_gpu=False):
         """Initialization method.
 
         Args:
@@ -46,7 +46,6 @@ class RBM(Model):
             decay (float): Weight decay used for penalization.
             temperature (float): Temperature factor.
             use_gpu (boolean): Whether GPU should be used or not.
-            mult (boolean): To employ multimodal imput.
 
         """
 
@@ -54,9 +53,6 @@ class RBM(Model):
 
         # Override its parent class
         super(RBM, self).__init__(use_gpu=use_gpu)
-
-        # Multimodal input (2 w8 matrices) -> Default = False
-        self.mult = mult
 
         # Amount of visible units
         self.n_visible = n_visible
@@ -85,26 +81,13 @@ class RBM(Model):
         # Pre-training constant 2
         self.c2 = 1.0
 
-        # Weights matrix        
-        if not self.mult:
-            self.W = nn.Parameter(torch.randn(n_visible, n_hidden) * 0.01)
-        else:
-            self.W = nn.Parameter(torch.randn(n_visible//2, n_hidden//2) * 0.01)
-            self.W2 = nn.Parameter(torch.randn(n_visible//2, n_hidden//2) * 0.01)
+        self.W = nn.Parameter(torch.randn(n_visible, n_hidden) * 0.01)
 
         # Visible units bias
-        if not self.mult:
-            self.a = nn.Parameter(torch.zeros(n_visible))
-        else:
-            self.a = nn.Parameter(torch.zeros(int(n_visible/2)))
-            self.a2 = nn.Parameter(torch.zeros(int(n_visible/2)))
+        self.a = nn.Parameter(torch.zeros(n_visible))
 
         # Hidden units bias
-        if not self.mult:
-            self.b = nn.Parameter(torch.zeros(n_hidden))
-        else:
-            self.b = nn.Parameter(torch.zeros(int(n_hidden/2)))
-            self.b2 = nn.Parameter(torch.zeros(int(n_hidden/2)))
+        self.b = nn.Parameter(torch.zeros(n_hidden))
 
         # Creating the optimizer object
         self.optimizer = opt.SGD(

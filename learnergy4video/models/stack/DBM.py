@@ -39,7 +39,7 @@ class DBM(Model):
     """
 
     def __init__(self, model=['gaussian', 'sigmoid'], n_visible=(72, 96), n_hidden=(128,), steps=(1,),
-                 learning_rate=(0.1,), momentum=(0,), decay=(0,), temperature=(1,), use_gpu=True, mult=False):
+                 learning_rate=(0.1,), momentum=(0,), decay=(0,), temperature=(1,), use_gpu=True):
         """Initialization method.
         Args:
             model (list of str): Indicates which type of RBM should be used to compose the DBM.
@@ -51,16 +51,12 @@ class DBM(Model):
             decay (tuple): Weight decay used for penalization per layer.
             temperature (tuple): Temperature factor per layer.
             use_gpu (boolean): Whether GPU should be used or not.
-            mult (boolean): To employ multimodal imput.
         """
 
         logger.info('Overriding class: Model -> DBM.')
 
         # Override its parent class
         super(DBM, self).__init__(use_gpu=use_gpu)
-
-        # Multimodal input -> default False
-        self.mult = mult
 
         # Shape of visible input
         self.visible_shape = n_visible

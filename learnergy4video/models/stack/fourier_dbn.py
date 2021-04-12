@@ -43,7 +43,7 @@ class FRDBN(Model):
     """
 
     def __init__(self, model=['fourier', 'sigmoid'], n_visible=(72, 96), n_hidden=(128,), steps=(1,),
-                 learning_rate=(0.1,), momentum=(0,), decay=(0,), temperature=(1,), use_gpu=True, mult=True, seed=0):
+                 learning_rate=(0.1,), momentum=(0,), decay=(0,), temperature=(1,), use_gpu=True):
         """Initialization method.
         Args:
             model (list of str): Indicates which type of RBM should be used to compose the DBN.
@@ -55,18 +55,12 @@ class FRDBN(Model):
             decay (tuple): Weight decay used for penalization per layer.
             temperature (tuple): Temperature factor per layer.
             use_gpu (boolean): Whether GPU should be used or not.
-            mult (boolean): To employ multimodal imput.
         """
 
         logger.info('Overriding class: Model -> FRDBN.')
 
         # Override its parent class
         super(FRDBN, self).__init__(use_gpu=use_gpu)
-
-        self.seed=seed
-
-        # Flag to multimodal input
-        self.mult = mult
 
         # Shape of visible input
         self.visible_shape = n_visible
@@ -124,7 +118,7 @@ class FRDBN(Model):
 
             # Creates an RBM
             m = MODELS[model[i]](n_input, self.n_hidden[i], self.steps[i],
-                              self.lr[i], self.momentum[i], self.decay[i], self.T[i], use_gpu, mult)
+                              self.lr[i], self.momentum[i], self.decay[i], self.T[i], use_gpu)
 
             # Appends the model to the list
             self.models.append(m)
@@ -319,17 +313,6 @@ class FRDBN(Model):
         # For every possible model (-RBM)
         for i, model in enumerate(self.models):
             logger.info(f'Fitting layer {i+1}/{self.n_layers} ...')
-
-            #try:
-            #    if i == 0:
-            #        m = torch.load("HXXspec_rbm"+str(self.seed)+".pth")
-            #        m.cuda()
-            #        m.eval()
-            #        self.models[i]=m.models[i]
-            #        print("Model loaded")
-            #        continue
-            #except:
-            #    print("Not laoded")
 
             if i == 0:
                 # Fits the RBM

@@ -38,7 +38,7 @@ class SpecRBM(GaussianRBM):
     """
 
     def __init__(self, n_visible=784, n_hidden=128, steps=1, learning_rate=0.1,
-                 momentum=0, decay=0, temperature=1, use_gpu=True, mult=False):
+                 momentum=0, decay=0, temperature=1, use_gpu=True):
         """Initialization method.
 
         Args:
@@ -54,9 +54,6 @@ class SpecRBM(GaussianRBM):
         """
 
         logger.info('Overriding class: GaussianRBM -> SpecRBM.')
-
-        # Flag to multimodal input
-        self.mult = mult
 
         # Amount of visible units
         self.n_visible = n_visible
