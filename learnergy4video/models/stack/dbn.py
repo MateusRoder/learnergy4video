@@ -76,7 +76,6 @@ class DBN(Model):
             for _ in range(len(model)-1, self.n_layers):
                 model.append("sigmoid")
 
-
         # Number of steps Gibbs' sampling steps
         self.steps = steps
 
@@ -384,7 +383,8 @@ class DBN(Model):
         # For every possible model
         for model in self.models:
             # Calculates the outputs of current model
-            x, _ = model.hidden_sampling(x)
+            #x, _ = model.hidden_sampling(x)
+            x, = model(x)
 
         return x.detach()
 

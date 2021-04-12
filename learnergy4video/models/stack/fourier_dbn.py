@@ -13,8 +13,7 @@ from learnergy4video.utils.fft_utils import fftshift, ifftshift
 from learnergy4video.utils.collate import collate_fn
 from learnergy4video.core.dataset import Dataset
 from learnergy4video.core.model import Model
-from learnergy4video.models.binary import RBM
-from learnergy4video.models.real import GaussianRBM, SigmoidRBM, EDropoutRBM, EDropoutRBM_Inner, FRRBM
+from learnergy4video.models.real import GaussianRBM, SigmoidRBM, EDropoutRBM, EDropoutRBM_Inner, FRRBM, MultFRRBM
 
 import os
 workers = os.cpu_count()
@@ -26,12 +25,12 @@ else:
 logger = l.get_logger(__name__)
 
 MODELS = {
-    'bernoulli': RBM,
     'gaussian': GaussianRBM,
     'sigmoid': SigmoidRBM,
     'edrop': EDropoutRBM,
     'edrop_inner': EDropoutRBM_Inner,
-    'fourier': FRRBM
+    'fourier': FRRBM,
+    'mult_fourier': MultFRRBM
     #'spectral': SpecRBM
 }
 
@@ -42,7 +41,7 @@ class FRDBN(Model):
         Roder (2021).
     """
 
-    def __init__(self, model=['fourier', 'sigmoid'], n_visible=(72, 96), n_hidden=(128,), steps=(1,),
+    def __init__(self, model=['mult_fourier', 'sigmoid'], n_visible=(72, 96), n_hidden=(128,), steps=(1,),
                  learning_rate=(0.1,), momentum=(0,), decay=(0,), temperature=(1,), use_gpu=True):
         """Initialization method.
         Args:
@@ -79,7 +78,6 @@ class FRDBN(Model):
             for _ in range(len(model)-1, self.n_layers):
                 model.append("sigmoid")
 
-
         # Number of steps Gibbs' sampling steps
         self.steps = steps
 
@@ -103,20 +101,23 @@ class FRDBN(Model):
             # If it is the first layer
             if i == 0:
                 # Gathers the number of input units as number of visible units
-                n_input = self.n_visible
+                if model[i] == 'mult_fourier':
+                    n_input = self.visible_shape
+                else:
+                    n_input = self.n_visible
 
                 # Forcing the Spectral input
-                model[i] = 'fourier'
+                #model[i] = 'mult_fourier'
 
             # If it is not the first layer
             else:
                 # Gathers the number of input units as previous number of hidden units
-                n_input = self.n_hidden[i-1]
+                if model[i-1] == 'mult_fourier':
+                    n_input = self.n_hidden[i-1][0] + self.n_hidden[i-1][1]
+                else:
+                    n_input = self.n_hidden[i-1]
 
-                # After creating the first layer, we need to change the model's type to sigmoid
-                #model[i] = 'sigmoid'
-
-            # Creates an RBM
+            # Creates an RBM            
             m = MODELS[model[i]](n_input, self.n_hidden[i], self.steps[i],
                               self.lr[i], self.momentum[i], self.decay[i], self.T[i], use_gpu)
 
@@ -308,8 +309,6 @@ class FRDBN(Model):
         # Initializing MSE and pseudo-likelihood as lists
         mse, pl, custo = [], [], []
 
-        nvis = self.models[0].n_visible
-
         # For every possible model (-RBM)
         for i, model in enumerate(self.models):
             logger.info(f'Fitting layer {i+1}/{self.n_layers} ...')
@@ -330,7 +329,7 @@ class FRDBN(Model):
                     logger.info(f'Epoch {ep+1}/{epochs[i]}')
                     mse2, pl2, cst2 = 0, 0, 0
 
-                    inner_trans = tqdm.tqdm(total=len(batches), desc='Batch', position=2)
+                    inner_trans = tqdm.tqdm(total=len(batches), desc='Batch', position=1)
                     start = time.time()
                     for ii, batch in enumerate(batches):
                         x, y = batch
@@ -342,26 +341,15 @@ class FRDBN(Model):
                             x = x.cuda()
 
                         for fr in range(frames):
-
                             sps = x[:, fr, :, :].squeeze()
 
-                            # Creating the Fourier Spectrum
-                            spec_data = fftshift(fftn(sps))[:,:,:,0]
-                            spec_data = torch.abs(spec_data.squeeze())
-                            spec_data.detach()
-                            
-                            # Flattening the samples' batch
-                            sps = sps.view(sps.size(0), int(nvis//2))
-                            spec_data = spec_data.view(spec_data.size(0), int(nvis//2))
-
-                            # Concatenating the inputs
-                            sps = torch.cat((sps, spec_data), dim=-1)
-                        
-                            # Normalizing the samples' batch
-                            sps = ((sps - torch.mean(sps, 0, True)) / (torch.std(sps, 0, True) + c.EPSILON)).detach()
-
                             for j in range(i): # iterate over trained models
-                                sps, _ = self.models[j].hidden_sampling(sps)
+                                if str(self.models[j]) == 'MultFRRBM()':
+                                    x1 = self.models[j].models[0].forward(sps)
+                                    x2 = self.models[j].models[1].forward(sps)
+                                    sps = torch.cat((x1, x2), -1)
+                                else:
+                                    sps = self.models[j].forward(sps)
                                                         
                             model_mse, model_pl, ct = model.fit(sps, len(sps), 1, frames)
 
@@ -412,31 +400,24 @@ class FRDBN(Model):
             x = x.cuda()
             ds = ds.cuda()      
 
+        # For every possible model
+        #for model in self.models:
+        if self.models[0] == "MultFRRBM()" or model == "FRRBM()" or model == "GaussianRBM()":
+            sps = self.models[0].forward(x)
+
         for fr in range(frames):
-            sps = x[:, fr, :, :].squeeze()
+            x_ = sps[:, fr, :].squeeze()
 
-            # Creating the Fourier Spectrum
-            spec_data = fftshift(fftn(sps))[:,:,:,0]
-            spec_data = torch.abs(spec_data.squeeze())
-            spec_data.detach()
-            
             # Flattening the samples' batch
-            sps = sps.view(sps.size(0), int(self.n_visible))
-            spec_data = spec_data.view(spec_data.size(0), int(self.n_visible))
-        
-            # Normalizing the samples' batch
-            sps = ((sps - torch.mean(sps, 0, True)) / (torch.std(sps, 0, True) + c.EPSILON)).detach()
-            spec_data = ((spec_data - torch.mean(spec_data, 0, True)) / (torch.std(spec_data, 0, True) + c.EPSILON)).detach()
-            
-            # Concatenating the inputs
-            sps = torch.cat((sps, spec_data), dim=-1)
+            x_ = x_.reshape(x_.size(0), self.models[0].n_visible)
 
-            # For every possible model
-            for model in self.models:
-                # Calculates the outputs of current model
-                sps, _ = model.hidden_sampling(sps)
+            # Normalizing the samples' batch
+            x_ = ((x_ - torch.mean(x_, 0, True)) / (torch.std(x_, 0, True) + c.EPSILON)).detach()
             
-            ds[:, fr, :] = sps
+            for m in range(1, self.n_layers):
+                x_ = self.models[m].forward(x_)
+            
+            ds[:, fr, :] = x_.reshape((x_.size(0), self.models[self.n_layers-1].n_hidden))
 
         return ds.detach()
 
